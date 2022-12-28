@@ -1,7 +1,6 @@
 package lila.game
 
 import shogi.Replay
-import shogi.format.forsyth.Sfen
 import shogi.format.kif.Kif
 import shogi.format.csa.Csa
 import shogi.format.{ Notation, NotationMove, Tag, Tags }
@@ -45,7 +44,7 @@ final class NotationDump(
         )
         extendedMoves.zipWithIndex.map { case (usiWithRole, index) =>
           NotationMove(
-            moveNumber = index + 1 + game.shogi.startedAtMove,
+            moveNumber = index + game.shogi.startedAtMove,
             usiWithRole = usiWithRole,
             secondsSpent = clocksSpent lift (index - clockOffset) map (_.roundSeconds),
             secondsTotal = clocksTotal lift (index - clockOffset) map (_.roundSeconds)
@@ -59,6 +58,7 @@ final class NotationDump(
             game.winnerColor.fold(false)(_ == game.turnColor),
             game.winnerColor
           )
+        else if (game.drawn && game.variant.chushogi) "引き分け".some
         else
           Kif.createTerminationMove(game.status, game.winnerColor.fold(false)(_ == game.turnColor))
       val notation = if (flags.csa) Csa(ts, moves) else Kif(ts, moves)

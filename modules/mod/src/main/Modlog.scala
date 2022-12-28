@@ -55,6 +55,7 @@ case class Modlog(
       case Modlog.cheatDetected       => "game lost by cheat detection"
       case Modlog.cli                 => "run CLI command"
       case Modlog.garbageCollect      => "garbage collect"
+      case Modlog.streamerDecline     => "decline streamer"
       case Modlog.streamerList        => "list streamer"
       case Modlog.streamerUnlist      => "unlist streamer"
       case Modlog.streamerFeature     => "feature streamer"   // BC
@@ -62,6 +63,7 @@ case class Modlog(
       case Modlog.streamerTier        => "set streamer tier"
       case Modlog.teamKick            => "kick from team"
       case Modlog.teamEdit            => "edited team"
+      case Modlog.setKidMode          => "set kid mode"
       case a                          => a
     }
 
@@ -117,6 +119,7 @@ object Modlog {
   val cheatDetected       = "cheatDetected"
   val cli                 = "cli"
   val garbageCollect      = "garbageCollect"
+  val streamerDecline     = "streamerDecline"
   val streamerList        = "streamerList"
   val streamerUnlist      = "streamerunlist"
   val streamerFeature     = "streamerFeature"   // BC
@@ -124,4 +127,5 @@ object Modlog {
   val streamerTier        = "streamerTier"
   val teamKick            = "teamKick"
   val teamEdit            = "teamEdit"
+  val setKidMode          = "setKidMode"
 }

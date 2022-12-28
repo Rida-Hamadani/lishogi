@@ -231,6 +231,93 @@
     });
   };
 
+  // Copied from shogiops
+  // todo - refactor and rewrite site in ts and get rid of this
+  function chushogiForsythToRole(str) {
+    switch (str.toLowerCase()) {
+      case 'l':
+        return 'lance';
+      case '+l':
+        return 'whitehorse';
+      case 'f':
+        return 'leopard';
+      case '+f':
+        return 'bishoppromoted';
+      case 'c':
+        return 'copper';
+      case '+c':
+        return 'sidemoverpromoted';
+      case 's':
+        return 'silver';
+      case '+s':
+        return 'verticalmoverpromoted';
+      case 'g':
+        return 'gold';
+      case '+g':
+        return 'rookpromoted';
+      case 'k':
+        return 'king';
+      case 'e':
+        return 'elephant';
+      case '+e':
+        return 'prince';
+      case 'a':
+        return 'chariot';
+      case '+a':
+        return 'whale';
+      case 'b':
+        return 'bishop';
+      case '+b':
+        return 'horsepromoted';
+      case 't':
+        return 'tiger';
+      case '+t':
+        return 'stag';
+      case 'o':
+        return 'kirin';
+      case '+o':
+        return 'lionpromoted';
+      case 'x':
+        return 'phoenix';
+      case '+x':
+        return 'queenpromoted';
+      case 'm':
+        return 'sidemover';
+      case '+m':
+        return 'boar';
+      case 'v':
+        return 'verticalmover';
+      case '+v':
+        return 'ox';
+      case 'r':
+        return 'rook';
+      case '+r':
+        return 'dragonpromoted';
+      case 'h':
+        return 'horse';
+      case '+h':
+        return 'falcon';
+      case 'd':
+        return 'dragon';
+      case '+d':
+        return 'eagle';
+      case 'n':
+        return 'lion';
+      case 'q':
+        return 'queen';
+      case 'p':
+        return 'pawn';
+      case '+p':
+        return 'promotedpawn';
+      case 'i':
+        return 'gobetween';
+      case '+i':
+        return 'elephantpromoted';
+      default:
+        return;
+    }
+  }
+
   lishogi.parseSfen = function ($elem) {
     if (!window.Shogiground)
       return setTimeout(function () {
@@ -238,29 +325,42 @@
       }, 500); // if not loaded yet
     // sometimes $elem is not a jQuery, can happen when content_loaded is triggered with random args
     if (!$elem || !$elem.each) $elem = $('.parse-sfen');
+    if (document.body.querySelector('.d-12x12')) lishogi.loadChushogiPieceSprite();
     $elem.each(function () {
       var $this = $(this).removeClass('parse-sfen');
       var lm = $this.data('lastmove');
-      var lastMove = lm && (lm[1] === '*' ? [lm.slice(2)] : [lm[0] + lm[1], lm[2] + lm[3]]);
+      var lastDests = lm && (lm[1] === '*' ? [lm.slice(2)] : lm.match(/..?/g));
       var color = $this.data('color') || lishogi.readServerSfen($(this).data('y'));
       var ground = $this.data('shogiground');
       var playable = !!$this.data('playable');
       var resizable = !!$this.data('resizable');
+      var variant = $this.data('variant');
       var sfen = $this.data('sfen') || lishogi.readServerSfen($this.data('z'));
-      var pocketFromSfen = sfen && sfen.split(' ').length > 2 ? sfen.split(' ')[2] : '';
+      var splitSfen = sfen.split(' ');
+      var handRoles =
+        variant === 'chushogi'
+          ? []
+          : variant === 'minishogi'
+          ? ['rook', 'bishop', 'gold', 'silver', 'pawn']
+          : ['rook', 'bishop', 'gold', 'silver', 'knight', 'lance', 'pawn'];
       var config = {
         coordinates: false,
         viewOnly: !playable,
         resizable: resizable,
-        sfen: sfen,
-        hasPockets: true,
-        pockets: pocketFromSfen,
-        lastMove: lastMove,
+        sfen: { board: splitSfen[0], hands: splitSfen[2] },
+        hands: {
+          inlined: variant !== 'chushogi',
+          roles: handRoles,
+        },
+        lastDests: lastDests,
         drawable: { enabled: false, visible: false },
+        forsyth: {
+          fromForsyth: variant === 'chushogi' ? chushogiForsythToRole : undefined,
+        },
       };
       if (color) config.orientation = color;
       if (ground) ground.set(config);
-      else $this.data('shogiground', Shogiground(this, config));
+      else $this.data('shogiground', Shogiground(config, { board: this }));
     });
   };
 
@@ -546,7 +646,7 @@
         lishogi.pubsub.emit('top.toggle.' + $(this).attr('id'));
         setTimeout(function () {
           var handler = function (e) {
-            if ($.contains($p[0], e.target)) return;
+            if ($.contains($p[0], e.target) || !!$('.sp-container:not(.sp-hidden)').length) return;
             $p.removeClass('shown');
             $('html').off('click', handler);
           };
@@ -598,6 +698,9 @@
         setTimeout(function () {
           const sprite = $('#piece-sprite');
           sprite.attr('href', sprite.attr('href').replace('.css', '.external.css'));
+
+          const chuSprite = $('#chu-piece-sprite');
+          if (chuSprite.length) chuSprite.attr('href', sprite.attr('href').replace('.css', '.external.css'));
         }, 1000);
 
       // prevent zoom when keyboard shows on iOS
@@ -672,7 +775,7 @@
           return {
             play: $.noop,
           };
-        set = 'standard';
+        set = 'shogi';
       }
       var baseUrl = lishogi.assetUrl('sound', { noVersion: true });
       return new Howl({
@@ -688,7 +791,7 @@
     Object.keys(names).forEach(function (name) {
       api[name] = function (text) {
         if (!enabled()) return;
-        if (!text || !api.say(text)) {
+        if (!text || !api.say({ en: text })) {
           Howler.volume(api.getVolume());
           var sound = collection(name);
           if (Howler.ctx && Howler.ctx.state == 'suspended') {
@@ -699,11 +802,14 @@
         }
       };
     });
-    api.say = function (text, cut, force) {
+    api.say = function (texts, cut, force) {
       if (!speechStorage.get() && !force) return false;
-      var msg = text.text ? text : new SpeechSynthesisUtterance(text);
+      var useJp = !!texts.jp && document.documentElement.lang === 'ja-JP';
+      var text = useJp ? texts.jp : texts.en;
+      var lang = useJp ? 'ja-JP' : 'en-US';
+      var msg = new SpeechSynthesisUtterance(text);
       msg.volume = api.getVolume();
-      msg.lang = 'en-US';
+      msg.lang = lang;
       if (cut) speechSynthesis.cancel();
       speechSynthesis.speak(msg);
       console.log(`%c${msg.text}`, 'color: blue');

@@ -1,11 +1,8 @@
+import { MaybeVNodes, bind } from 'common/snabbdom';
 import { Outcome } from 'shogiops/types';
-import { bind } from '../util';
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import { PracticeCtrl, Comment } from './practiceCtrl';
+import { VNode, h } from 'snabbdom';
 import AnalyseCtrl from '../ctrl';
-import { MaybeVNodes } from '../interfaces';
-import { pretendItsUsi } from 'common';
+import { Comment, PracticeCtrl } from './practiceCtrl';
 
 function commentBest(c: Comment, root: AnalyseCtrl, ctrl: PracticeCtrl): MaybeVNodes {
   return c.best
@@ -24,7 +21,7 @@ function commentBest(c: Comment, root: AnalyseCtrl, ctrl: PracticeCtrl): MaybeVN
               destroy: () => ctrl.commentShape(false),
             },
           },
-          pretendItsUsi(c.best.usi)
+          c.best.usi
         )
       )
     : [];
@@ -102,7 +99,7 @@ export default function (root: AnalyseCtrl): VNode | undefined {
   if (!ctrl) return;
   const comment: Comment | null = ctrl.comment();
   const running: boolean = ctrl.running();
-  const end = ctrl.currentNode().fourfold ? { winner: undefined } : root.outcome();
+  const end: Outcome | undefined = ctrl.currentNode().fourfold ? { result: 'draw', winner: undefined } : root.outcome();
   return h('div.practice-box.training-box.sub-box.' + (comment ? comment.verdict : 'no-verdict'), [
     h('div.title', root.trans.noarg('practiceWithComputer')),
     h('div.feedback', !running ? renderOffTrack(root, ctrl) : end ? renderEnd(root, end) : renderRunning(root, ctrl)),

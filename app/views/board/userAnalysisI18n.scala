@@ -3,7 +3,7 @@ package views.html.board
 import play.api.i18n.Lang
 
 import lila.app.templating.Environment._
-import lila.i18n.{ MessageKey, I18nKeys => trans }
+import lila.i18n.{ I18nKeys => trans, MessageKey }
 
 object userAnalysisI18n {
 
@@ -34,6 +34,9 @@ object userAnalysisI18n {
     trans.whiteResigned,
     trans.blackResigned,
     trans.stalemate,
+    trans.royalsLost,
+    trans.bareKing,
+    trans.perpetualCheck,
     trans.whiteLeftTheGame,
     trans.blackLeftTheGame,
     trans.draw,

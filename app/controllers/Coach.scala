@@ -4,7 +4,7 @@ import play.api.mvc._
 
 import lila.api.Context
 import lila.app._
-import lila.coach.{ Coach => CoachModel, CoachProfileForm, CoachPager }
+import lila.coach.{ Coach => CoachModel, CoachPager, CoachProfileForm }
 import views._
 
 final class Coach(env: Env) extends LilaController(env) {
@@ -127,7 +127,7 @@ final class Coach(env: Env) extends LilaController(env) {
       OptionFuResult(api findOrInit me) { c =>
         ctx.body.body.file("picture") match {
           case Some(pic) =>
-            api.uploadPicture(c, pic) recover { case e: lila.base.LilaException =>
+            api.uploadPicture(c, pic, me) recover { case e: lila.base.LilaException =>
               BadRequest(html.coach.picture(c, e.message.some))
             } inject Redirect(routes.Coach.edit)
           case None => fuccess(Redirect(routes.Coach.edit))

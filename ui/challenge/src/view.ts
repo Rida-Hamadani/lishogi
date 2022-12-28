@@ -1,6 +1,6 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import { Ctrl, Challenge, ChallengeData, ChallengeDirection, ChallengeUser, TimeControl } from './interfaces';
+import spinner from 'common/spinner';
+import { VNode, h } from 'snabbdom';
+import { Challenge, ChallengeData, ChallengeDirection, ChallengeUser, Ctrl, TimeControl } from './interfaces';
 
 export function loaded(ctrl: Ctrl): VNode {
   return ctrl.redirecting()
@@ -163,8 +163,8 @@ function create(): VNode {
     attrs: {
       href: '/?any#friend',
       'data-icon': 'O',
+      title: 'Challenge someone',
     },
-    title: 'Challenge someone',
   });
 }
 
@@ -186,14 +186,4 @@ function onClick(f: (e: Event) => void) {
       (vnode.elm as HTMLElement).addEventListener('click', f);
     },
   };
-}
-
-function spinner() {
-  return h('div.spinner', [
-    h('svg', { attrs: { viewBox: '0 0 40 40' } }, [
-      h('circle', {
-        attrs: { cx: 20, cy: 20, r: 18, fill: 'none' },
-      }),
-    ]),
-  ]);
 }

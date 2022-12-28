@@ -2,7 +2,19 @@ package lila.game
 
 import shogi.format.forsyth.Sfen
 import shogi.variant.Variant
-import shogi.{ Color, Clock, Hands, Sente, Gote, Status, Mode, History => ShogiHistory, Game => ShogiGame }
+import shogi.{
+  Clock,
+  Color,
+  ConsecutiveAttacks,
+  Game => ShogiGame,
+  Gote,
+  Hands,
+  History => ShogiHistory,
+  Mode,
+  Pos,
+  Sente,
+  Status
+}
 import org.joda.time.DateTime
 import reactivemongo.api.bson._
 import scala.util.{ Success, Try }
@@ -14,8 +26,12 @@ object BSONHandlers {
 
   import lila.db.ByteArray.ByteArrayBSONHandler
 
-  implicit val StatusBSONHandler = tryHandler[Status](
-    { case BSONInteger(v) => Status(v) toTry s"No such status: $v" },
+  implicit private[game] val consecutiveAttacksWriter = new BSONWriter[ConsecutiveAttacks] {
+    def writeTry(ca: ConsecutiveAttacks) = Success(BSONArray(ca.sente, ca.gote))
+  }
+
+  implicit val StatusBSONHandler = quickHandler[Status](
+    { case BSONInteger(v) => Status(v).getOrElse(Status.UnknownFinish) },
     x => BSONInteger(x.id)
   )
 
@@ -33,14 +49,15 @@ object BSONHandlers {
 
       val light = lightGameBSONHandler.readsWithPlayerIds(r, r str F.playerIds)
 
-      val initialSfen   = r.getO[Sfen](F.initialSfen)
-      val startedAtPly  = r intD F.startedAtPly
-      val startedAtMove = initialSfen.flatMap(_.moveNumber) | 1
-      val plies         = r int F.plies atMost Game.maxPlies // unlimited can cause StackOverflowError
-      val turnColor     = Color.fromPly(plies)
-      val createdAt     = r date F.createdAt
+      val initialSfen    = r.getO[Sfen](F.initialSfen)
+      val startedAtMove  = initialSfen.flatMap(_.moveNumber) | 1
+      val startedAtColor = initialSfen.flatMap(_.color) | Sente
+      val startedAtPly   = startedAtMove - (if ((startedAtMove % 2 == 1) == startedAtColor.sente) 1 else 0)
 
-      val playedPlies = plies - startedAtPly
+      val plies     = r int F.plies atMost Game.maxPlies // unlimited can cause StackOverflowError
+      val plyColor  = Color.fromPly(plies)
+      val createdAt = r date F.createdAt
+
       val gameVariant = Variant(r intD F.variant) | shogi.variant.Standard
 
       val periodEntries = BinaryFormat.periodEntries
@@ -56,21 +73,27 @@ object BSONHandlers {
       val positionHashes = r.getO[shogi.PositionHash](F.positionHashes) | Array.empty
       val hands          = r.strO(F.hands) flatMap { Sfen.makeHandsFromString(_, gameVariant) }
 
+      val lastLionCapture = if (gameVariant.chushogi) r.strO(F.lastLionCapture).flatMap(Pos.fromKey) else None
+      val counts          = r.intsD(F.consecutiveAttacks)
+
       val shogiGame = ShogiGame(
         situation = shogi.Situation(
           shogi.Board(pieces = pieces),
           hands = hands.getOrElse(Hands.empty),
-          color = turnColor,
+          color = plyColor,
           history = ShogiHistory(
             lastMove = usiMoves.lastOption,
-            positionHashes = positionHashes
+            lastLionCapture = lastLionCapture,
+            consecutiveAttacks = ConsecutiveAttacks(~counts.headOption, ~counts.lastOption),
+            positionHashes = positionHashes,
+            initialSfen = initialSfen
           ),
           variant = gameVariant
         ),
         usiMoves = usiMoves,
         clock = r.getO[Color => Clock](F.clock) {
           clockBSONReader(createdAt, periodEntries, light.sentePlayer.berserk, light.gotePlayer.berserk)
-        } map (_(turnColor)),
+        } map (_(plyColor)),
         plies = plies,
         startedAtPly = startedAtPly,
         startedAtMove = startedAtMove
@@ -84,14 +107,13 @@ object BSONHandlers {
         sentePlayer = light.sentePlayer,
         gotePlayer = light.gotePlayer,
         shogi = shogiGame,
-        initialSfen = initialSfen,
         loadClockHistory = clk =>
           for {
             bs <- senteClockHistory
             bg <- goteClockHistory
             history <-
               BinaryFormat.clockHistory
-                .read(clk.limit, bs, bg, periodEntries, (light.status == Status.Outoftime).option(turnColor))
+                .read(clk.limit, bs, bg, periodEntries, (light.status == Status.Outoftime).option(plyColor))
             _ = lila.mon.game.loadClockHistory.increment()
           } yield history,
         status = light.status,
@@ -127,33 +149,34 @@ object BSONHandlers {
             (_: Player.ID) => (_: Player.UserId) => (_: Player.Win) => o.gotePlayer
           )
         ),
-        F.status       -> o.status,
-        F.plies        -> o.shogi.plies,
-        F.startedAtPly -> w.intO(o.shogi.startedAtPly),
+        F.status -> o.status,
+        F.plies  -> o.shogi.plies,
         F.clock -> (o.shogi.clock flatMap { c =>
           clockBSONWrite(o.createdAt, c).toOption
         }),
-        F.daysPerTurn       -> o.daysPerTurn,
-        F.moveTimes         -> o.binaryMoveTimes,
-        F.senteClockHistory -> clockHistory(Sente, o.clockHistory, o.shogi.clock, o.flagged),
-        F.goteClockHistory  -> clockHistory(Gote, o.clockHistory, o.shogi.clock, o.flagged),
-        F.periodsSente      -> periodEntries(Sente, o.clockHistory),
-        F.periodsGote       -> periodEntries(Gote, o.clockHistory),
-        F.rated             -> w.boolO(o.mode.rated),
-        F.initialSfen       -> o.initialSfen,
-        F.variant           -> (!o.variant.standard).option(w int o.variant.id),
-        F.bookmarks         -> w.intO(o.bookmarks),
-        F.createdAt         -> w.date(o.createdAt),
-        F.movedAt           -> w.date(o.movedAt),
-        F.source            -> o.metadata.source.map(_.id),
-        F.notationImport    -> o.metadata.notationImport,
-        F.tournamentId      -> o.metadata.tournamentId,
-        F.swissId           -> o.metadata.swissId,
-        F.simulId           -> o.metadata.simulId,
-        F.analysed          -> w.boolO(o.metadata.analysed),
-        F.positionHashes    -> o.history.positionHashes,
-        F.hands             -> Sfen.handsToString(o.hands, o.variant),
-        F.usiMoves          -> BinaryFormat.usi.write(o.usiMoves, o.variant)
+        F.daysPerTurn        -> o.daysPerTurn,
+        F.moveTimes          -> o.binaryMoveTimes,
+        F.senteClockHistory  -> clockHistory(Sente, o.clockHistory, o.shogi.clock, o.flagged),
+        F.goteClockHistory   -> clockHistory(Gote, o.clockHistory, o.shogi.clock, o.flagged),
+        F.periodsSente       -> periodEntries(Sente, o.clockHistory),
+        F.periodsGote        -> periodEntries(Gote, o.clockHistory),
+        F.rated              -> w.boolO(o.mode.rated),
+        F.initialSfen        -> o.initialSfen,
+        F.variant            -> (!o.variant.standard).option(w int o.variant.id),
+        F.bookmarks          -> w.intO(o.bookmarks),
+        F.createdAt          -> w.date(o.createdAt),
+        F.movedAt            -> w.date(o.movedAt),
+        F.lastLionCapture    -> o.history.lastLionCapture.map(_.key),
+        F.consecutiveAttacks -> o.history.consecutiveAttacks,
+        F.source             -> o.metadata.source.map(_.id),
+        F.notationImport     -> o.metadata.notationImport,
+        F.tournamentId       -> o.metadata.tournamentId,
+        F.swissId            -> o.metadata.swissId,
+        F.simulId            -> o.metadata.simulId,
+        F.analysed           -> w.boolO(o.metadata.analysed),
+        F.positionHashes     -> o.history.positionHashes,
+        F.hands              -> Sfen.handsToString(o.hands, o.variant),
+        F.usiMoves           -> BinaryFormat.usi.write(o.usiMoves, o.variant)
       )
   }
 

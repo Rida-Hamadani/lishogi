@@ -7,6 +7,7 @@ import lila.app.templating.Environment._
 import lila.app.ui.ScalatagsTemplate._
 import lila.common.String.html.safeJsonValue
 import lila.rating.PerfType.iconByVariant
+import views.html.base.layout.{ bits => layout }
 
 import controllers.routes
 
@@ -17,23 +18,23 @@ object userAnalysis {
       title = trans.analysis.txt(),
       moreCss = frag(
         cssTag("analyse.free"),
-        cssTag("analyse.zh"), // pov.game.variant == Standard option cssTag("analyse.zh"),
         withForecast option cssTag("analyse.forecast"),
-        ctx.blind option cssTag("round.nvui")
+        ctx.blind option cssTag("round.nvui"),
+        (pov.game.variant.chushogi) option layout.chuPieceSprite
       ),
       moreJs = frag(
         analyseTag,
         analyseNvuiTag,
         embedJsUnsafe(s"""lishogi=lishogi||{};lishogi.user_analysis=${safeJsonValue(
-          Json.obj(
-            "data" -> data,
-            "i18n" -> userAnalysisI18n(withForecast = withForecast),
-            "explorer" -> Json.obj(
-              "endpoint"          -> explorerEndpoint,
-              "tablebaseEndpoint" -> tablebaseEndpoint
+            Json.obj(
+              "data" -> data,
+              "i18n" -> userAnalysisI18n(withForecast = withForecast),
+              "explorer" -> Json.obj(
+                "endpoint"          -> explorerEndpoint,
+                "tablebaseEndpoint" -> tablebaseEndpoint
+              )
             )
-          )
-        )}""")
+          )}""")
       ),
       csp = defaultCsp.withWebAssembly.some,
       shogiground = false,
@@ -46,7 +47,7 @@ object userAnalysis {
         .some,
       zoomable = true
     ) {
-      main(cls := "analyse")(
+      main(cls := s"analyse variant-${pov.game.variant.key}")(
         pov.game.synthetic option st.aside(cls := "analyse__side")(
           views.html.base.bits.mselect(
             "analyse-variant",
@@ -54,14 +55,16 @@ object userAnalysis {
             shogi.variant.Variant.all.map { v =>
               a(
                 dataIcon := iconByVariant(v),
-                cls := (pov.game.variant == v).option("current"),
-                href := routes.UserAnalysis.parseArg(v.key)
+                cls      := (pov.game.variant == v).option("current"),
+                href     := routes.UserAnalysis.parseArg(v.key)
               )(v.name)
             }
           )
         ),
-        div(cls := "analyse__board main-board")(shogigroundBoard),
+        div(cls := "analyse__board main-board")(shogigroundBoard(pov.game.variant, pov.color.some)),
+        (!pov.game.variant.chushogi) option sgHandTop,
         div(cls := "analyse__tools"),
+        (!pov.game.variant.chushogi) option sgHandBottom,
         div(cls := "analyse__controls")
       )
     }

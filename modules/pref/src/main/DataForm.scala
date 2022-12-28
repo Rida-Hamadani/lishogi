@@ -17,20 +17,21 @@ object DataForm {
   val pref = Form(
     mapping(
       "display" -> mapping(
-        "animation"       -> number.verifying(Set(0, 1, 2, 3) contains _),
-        "captured"        -> booleanNumber,
-        "highlight"       -> booleanNumber,
-        "destination"     -> booleanNumber,
-        "dropDestination" -> booleanNumber,
-        "coords"          -> checkedNumber(Pref.Coords.choices),
-        "replay"          -> checkedNumber(Pref.Replay.choices),
-        "pieceNotation"   -> optional(checkedNumber(Pref.PieceNotation.choices)),
-        "zen"             -> optional(booleanNumber),
-        "resizeHandle"    -> optional(checkedNumber(Pref.ResizeHandle.choices)),
-        "blindfold"       -> checkedNumber(Pref.Blindfold.choices)
+        "boardLayout"        -> checkedNumber(Pref.BoardLayout.choices),
+        "animation"          -> checkedNumber(Pref.Animation.choices),
+        "coords"             -> checkedNumber(Pref.Coords.choices),
+        "highlightLastDests" -> booleanNumber,
+        "highlightCheck"     -> booleanNumber,
+        "squareOverlay"      -> booleanNumber,
+        "destination"        -> booleanNumber,
+        "dropDestination"    -> booleanNumber,
+        "replay"             -> checkedNumber(Pref.Replay.choices),
+        "zen"                -> optional(booleanNumber),
+        "resizeHandle"       -> optional(checkedNumber(Pref.ResizeHandle.choices)),
+        "blindfold"          -> checkedNumber(Pref.Blindfold.choices)
       )(DisplayData.apply)(DisplayData.unapply),
       "behavior" -> mapping(
-        "moveEvent"     -> optional(number.verifying(Set(0, 1, 2) contains _)),
+        "moveEvent"     -> optional(checkedNumber(Pref.MoveEvent.choices)),
         "premove"       -> booleanNumber,
         "takeback"      -> checkedNumber(Pref.Takeback.choices),
         "submitMove"    -> checkedNumber(Pref.SubmitMove.choices),
@@ -40,7 +41,6 @@ object DataForm {
       "clock" -> mapping(
         "tenths"    -> checkedNumber(Pref.ClockTenths.choices),
         "countdown" -> checkedNumber(Pref.ClockCountdown.choices),
-        "bar"       -> booleanNumber,
         "sound"     -> booleanNumber,
         "moretime"  -> checkedNumber(Pref.Moretime.choices)
       )(ClockData.apply)(ClockData.unapply),
@@ -48,19 +48,20 @@ object DataForm {
       "challenge"    -> checkedNumber(Pref.Challenge.choices),
       "message"      -> checkedNumber(Pref.Message.choices),
       "studyInvite"  -> optional(checkedNumber(Pref.StudyInvite.choices)),
-      "insightShare" -> number.verifying(Set(0, 1, 2) contains _)
+      "insightShare" -> checkedNumber(Pref.InsightShare.choices)
     )(PrefData.apply)(PrefData.unapply)
   )
 
   case class DisplayData(
+      boardLayout: Int,
       animation: Int,
-      captured: Int,
-      highlight: Int,
+      coords: Int,
+      highlightLastDests: Int,
+      highlightCheck: Int,
+      squareOverlay: Int,
       destination: Int,
       dropDestination: Int,
-      coords: Int,
       replay: Int,
-      pieceNotation: Option[Int],
       zen: Option[Int],
       resizeHandle: Option[Int],
       blindfold: Int
@@ -78,7 +79,6 @@ object DataForm {
   case class ClockData(
       tenths: Int,
       countdown: Int,
-      bar: Int,
       sound: Int,
       moretime: Int
   )
@@ -100,10 +100,11 @@ object DataForm {
         moretime = clock.moretime,
         clockTenths = clock.tenths,
         clockCountdown = clock.countdown,
-        clockBar = clock.bar == 1,
         clockSound = clock.sound == 1,
         follow = follow == 1,
-        highlight = display.highlight == 1,
+        highlightLastDests = display.highlightLastDests == 1,
+        highlightCheck = display.highlightCheck == 1,
+        squareOverlay = display.squareOverlay == 1,
         destination = display.destination == 1,
         dropDestination = display.dropDestination == 1,
         coords = display.coords,
@@ -113,15 +114,14 @@ object DataForm {
         message = message,
         studyInvite = studyInvite | Pref.default.studyInvite,
         premove = behavior.premove == 1,
+        boardLayout = display.boardLayout,
         animation = display.animation,
         submitMove = behavior.submitMove,
         insightShare = insightShare,
         confirmResign = behavior.confirmResign,
-        captured = display.captured == 1,
         keyboardMove = behavior.keyboardMove | pref.keyboardMove,
         zen = display.zen | pref.zen,
         resizeHandle = display.resizeHandle | pref.resizeHandle,
-        pieceNotation = display.pieceNotation | pref.pieceNotation,
         moveEvent = behavior.moveEvent | pref.moveEvent
       )
   }
@@ -130,17 +130,18 @@ object DataForm {
     def apply(pref: Pref): PrefData =
       PrefData(
         display = DisplayData(
-          highlight = if (pref.highlight) 1 else 0,
+          coords = pref.coords,
+          highlightLastDests = if (pref.highlightLastDests) 1 else 0,
+          highlightCheck = if (pref.highlightCheck) 1 else 0,
+          squareOverlay = if (pref.squareOverlay) 1 else 0,
           destination = if (pref.destination) 1 else 0,
           dropDestination = if (pref.dropDestination) 1 else 0,
+          boardLayout = pref.boardLayout,
           animation = pref.animation,
-          coords = pref.coords,
           replay = pref.replay,
-          captured = if (pref.captured) 1 else 0,
           blindfold = pref.blindfold,
           zen = pref.zen.some,
-          resizeHandle = pref.resizeHandle.some,
-          pieceNotation = pref.pieceNotation.some
+          resizeHandle = pref.resizeHandle.some
         ),
         behavior = BehaviorData(
           moveEvent = pref.moveEvent.some,
@@ -153,7 +154,6 @@ object DataForm {
         clock = ClockData(
           tenths = pref.clockTenths,
           countdown = pref.clockCountdown,
-          bar = if (pref.clockBar) 1 else 0,
           sound = if (pref.clockSound) 1 else 0,
           moretime = pref.moretime
         ),
@@ -179,9 +179,9 @@ object DataForm {
     )
   )
 
-  val themeTall = Form(
+  val chuPieceSet = Form(
     single(
-      "theme" -> text.verifying(ThemeTall contains _)
+      "set" -> text.verifying(ChuPieceSet contains _)
     )
   )
 
@@ -199,13 +199,11 @@ object DataForm {
 
   val bgImg = Form(
     single(
-      "bgImg" -> nonEmptyText
-    )
-  )
-
-  val isTall = Form(
-    single(
-      "isTall" -> text.verifying(List("true", "false") contains _)
+      "bgImg" -> text.verifying { url =>
+        url.getBytes("UTF-8").length < 400 && (url.isEmpty || url.startsWith("https://") || url.startsWith(
+          "//"
+        ))
+      }
     )
   )
 
@@ -215,9 +213,29 @@ object DataForm {
     )
   )
 
-  val pieceNotation = Form(
+  val notation = Form(
     single(
-      "pieceNotation" -> text.verifying(Set("0", "1", "2", "3") contains _)
+      "notation" -> text.verifying(Set("0", "1", "2", "3") contains _)
     )
   )
+
+  val customTheme = Form(
+    mapping(
+      "boardColor" -> text(maxLength = 30),
+      "boardImg" -> text.verifying { url =>
+        url.getBytes("UTF-8").length < 400 && (url.isEmpty || url.startsWith("https://") || url.startsWith(
+          "//"
+        ))
+      },
+      "gridColor"  -> text(maxLength = 30),
+      "gridWidth"  -> number.verifying(Set(0, 1, 2, 3) contains _),
+      "handsColor" -> text(maxLength = 30),
+      "handsImg" -> text.verifying { url =>
+        url.getBytes("UTF-8").length < 400 && (url.isEmpty || url.startsWith("https://") || url.startsWith(
+          "//"
+        ))
+      }
+    )(CustomTheme.apply)(CustomTheme.unapply)
+  )
+
 }

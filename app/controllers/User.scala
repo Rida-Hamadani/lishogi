@@ -16,7 +16,7 @@ import lila.app._
 import lila.app.mashup.{ GameFilter, GameFilterMenu }
 import lila.common.paginator.Paginator
 import lila.common.{ HTTPRequest, IpAddress }
-import lila.game.{ Pov, Game => GameModel }
+import lila.game.{ Game => GameModel, Pov }
 import lila.rating.PerfType
 import lila.socket.UserLagCache
 import lila.user.{ User => UserModel }
@@ -269,7 +269,8 @@ final class User(
                   "classical"      -> leaderboards.classical,
                   "ultraBullet"    -> leaderboards.ultraBullet,
                   "correspondence" -> leaderboards.correspondence,
-                  "minishogi"      -> leaderboards.minishogi
+                  "minishogi"      -> leaderboards.minishogi,
+                  "chushogi"       -> leaderboards.chushogi
                 )
               )
             }

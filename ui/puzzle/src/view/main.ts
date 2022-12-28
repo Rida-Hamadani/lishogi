@@ -1,29 +1,18 @@
+import { view as cevalView } from 'ceval';
+import { bindMobileMousedown } from 'common/mobile';
+import { bindNonPassive, onInsert } from 'common/snabbdom';
+import stepwiseScroll from 'common/wheel';
+import { VNode, h } from 'snabbdom';
 import * as control from '../control';
+import { Controller } from '../interfaces';
+import feedbackView from './feedback';
+import * as shogiground from './shogiground';
 import * as side from './side';
 import theme from './theme';
-import changeColorHandle from 'common/coordsColor';
-import shogiground from './shogiground';
-import feedbackView from './feedback';
-import { Controller } from '../interfaces';
-import { h } from 'snabbdom';
-import { onInsert, bind, bindMobileMousedown } from '../util';
 import { render as treeView } from './tree';
-import { view as cevalView } from 'ceval';
-import { VNode } from 'snabbdom/vnode';
-import handView from '../hands/handView';
 
 function renderAnalyse(ctrl: Controller): VNode {
   return h('div.puzzle__moves.areplay', [treeView(ctrl)]);
-}
-
-function wheel(ctrl: Controller, e: WheelEvent): false | undefined {
-  const target = e.target as HTMLElement;
-  if (target.tagName !== 'PIECE' && target.tagName !== 'SQUARE' && target.tagName !== 'CG-BOARD') return;
-  e.preventDefault();
-  if (e.deltaY > 0) control.next(ctrl);
-  else if (e.deltaY < 0) control.prev(ctrl);
-  ctrl.redraw();
-  return false;
 }
 
 function dataAct(e: Event): string | null {
@@ -91,7 +80,6 @@ export default function (ctrl: Controller): VNode {
           if (old.data!.gaugeOn !== gaugeOn) {
             if (ctrl.pref.coords == 2) {
               $('body').toggleClass('coords-in', gaugeOn).toggleClass('coords-out', !gaugeOn);
-              changeColorHandle();
             }
             document.body.dispatchEvent(new Event('shogiground.resize'));
           }
@@ -110,11 +98,24 @@ export default function (ctrl: Controller): VNode {
       h(
         'div.puzzle__board.main-board' + (ctrl.pref.blindfold ? '.blindfold' : ''),
         {
-          hook: 'ontouchstart' in window ? undefined : bind('wheel', e => wheel(ctrl, e as WheelEvent)),
+          hook:
+            'ontouchstart' in window || window.lishogi.storage.get('scrollMoves') == '0'
+              ? undefined
+              : bindNonPassive(
+                  'wheel',
+                  stepwiseScroll((e: WheelEvent, scroll: boolean) => {
+                    const target = e.target as HTMLElement;
+                    if (target.tagName !== 'SG-PIECES') return;
+                    e.preventDefault();
+                    if (e.deltaY > 0 && scroll) control.next(ctrl);
+                    else if (e.deltaY < 0 && scroll) control.prev(ctrl);
+                    ctrl.redraw();
+                  })
+                ),
         },
-        [shogiground(ctrl), ctrl.promotion.view()]
+        shogiground.renderBoard(ctrl)
       ),
-      handView(ctrl, 'top'),
+      shogiground.renderHand(ctrl, 'top'),
       cevalView.renderGauge(ctrl),
       h('div.puzzle__tools', [
         // we need the wrapping div here
@@ -129,7 +130,7 @@ export default function (ctrl: Controller): VNode {
         renderAnalyse(ctrl),
         feedbackView(ctrl),
       ]),
-      handView(ctrl, 'bottom'),
+      shogiground.renderHand(ctrl, 'bottom'),
       controls(ctrl),
       session(ctrl),
     ]

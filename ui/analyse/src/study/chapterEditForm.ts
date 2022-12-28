@@ -1,12 +1,13 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import { defined, prop, Prop } from 'common';
+import { Prop, defined, prop } from 'common/common';
+import { bind, bindSubmit, onInsert } from 'common/snabbdom';
+import spinner from 'common/spinner';
+import { toBlackWhite } from 'shogiops/util';
+import { VNode, h } from 'snabbdom';
 import { Redraw } from '../interfaces';
-import { bind, bindSubmit, spinner, option, onInsert, emptyRedButton } from '../util';
 import * as modal from '../modal';
+import { emptyRedButton, option } from '../util';
 import * as chapterForm from './chapterNewForm';
 import { StudyChapterConfig, StudyChapterMeta } from './interfaces';
-import { toBlackWhite } from 'shogiops/util';
 
 interface StudyChapterEditFormCtrl {
   current: Prop<StudyChapterMeta | StudyChapterConfig | null>;
@@ -59,7 +60,6 @@ export function ctrl(
         send('editChapter', data);
         current(null);
       }
-      redraw();
     },
     delete(id) {
       send('deleteChapter', id);
@@ -95,7 +95,7 @@ export function view(ctrl: StudyChapterEditFormCtrl): VNode | undefined {
                   o[field] = chapterForm.fieldValue(e, field);
                 });
                 ctrl.submit(o);
-              }),
+              }, ctrl.redraw),
             },
             [
               h('div.form-group', [
@@ -127,18 +127,28 @@ export function view(ctrl: StudyChapterEditFormCtrl): VNode | undefined {
             h(
               emptyRedButton,
               {
-                hook: bind('click', _ => {
-                  if (confirm(ctrl.trans.noarg('clearAllCommentsInThisChapter'))) ctrl.clearAnnotations(data.id);
-                }),
+                hook: bind(
+                  'click',
+                  _ => {
+                    if (confirm(ctrl.trans.noarg('clearAllCommentsInThisChapter'))) ctrl.clearAnnotations(data.id);
+                  },
+                  ctrl.redraw
+                ),
+                attrs: { type: 'button' },
               },
               ctrl.trans.noarg('clearAnnotations')
             ),
             h(
               emptyRedButton,
               {
-                hook: bind('click', _ => {
-                  if (confirm(ctrl.trans.noarg('deleteThisChapter'))) ctrl.delete(data.id);
-                }),
+                hook: bind(
+                  'click',
+                  _ => {
+                    if (confirm(ctrl.trans.noarg('deleteThisChapter'))) ctrl.delete(data.id);
+                  },
+                  ctrl.redraw
+                ),
+                attrs: { type: 'button' },
               },
               ctrl.trans.noarg('deleteChapter')
             ),

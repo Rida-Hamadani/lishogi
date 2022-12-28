@@ -4,7 +4,6 @@ import cats.data.Validated
 import shogi.format.kif.KifParser
 import shogi.format.csa.CsaParser
 import shogi.format.{ ParsedNotation, Reader, Tag, TagType }
-import shogi.format.forsyth.Sfen
 import shogi.{ Color, Mode, Replay, Status }
 import play.api.data._
 import play.api.data.Forms._
@@ -53,7 +52,7 @@ case class ImportData(notation: String, analyse: Option[String]) {
       case "" | "投了" | "TORYO"                                                      => Status.Resign
       case "詰み" | "TSUMI"                                                           => Status.Mate
       case "中断" | "CHUDAN"                                                          => Status.Aborted
-      case "持将棋" | "千日手" | "JISHOGI" | "SENNICHITE" | "HIKIWAKE"                    => Status.Draw
+      case "持将棋" | "千日手" | "引き分け" | "引分け" | "JISHOGI" | "SENNICHITE" | "HIKIWAKE"   => Status.Draw
       case "入玉勝ち" | "KACHI"                                                         => Status.Impasse27
       case "切れ負け" | "TIME-UP" | "TIME_UP"                                           => Status.Outoftime
       case "反則勝ち" | "反則負け" | "ILLEGAL_MOVE" | "+ILLEGAL_ACTION" | "-ILLEGAL_ACTION" => Status.Cheat
@@ -116,7 +115,7 @@ case class ImportData(notation: String, analyse: Option[String]) {
           .start pipe { dbGame =>
           // apply the result from the board or the tags
           game.situation.status match {
-            case Some(situationStatus) => dbGame.finish(situationStatus, game.situation.winner).game
+            case Some(situationStatus) => dbGame.finish(situationStatus, game.situation.winner)
             case None =>
               parsed.tags.resultColor
                 .map {
@@ -126,7 +125,7 @@ case class ImportData(notation: String, analyse: Option[String]) {
                 }
                 .filter(_.status > Status.Started)
                 .fold(dbGame) { res =>
-                  dbGame.finish(res.status, res.winner).game
+                  dbGame.finish(res.status, res.winner)
                 }
           }
         }

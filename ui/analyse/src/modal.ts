@@ -1,7 +1,5 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import { MaybeVNodes } from './interfaces';
-import { bind, onInsert } from './util';
+import { MaybeVNodes, bind, onInsert } from 'common/snabbdom';
+import { VNode, h } from 'snabbdom';
 
 interface Modal {
   class?: string;

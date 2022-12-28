@@ -1,24 +1,32 @@
-import { path as pathOps } from 'tree';
-import { Vm, Puzzle, MoveTest } from './interfaces';
-import { parseSfen } from 'shogiops/sfen';
 import { opposite } from 'shogiground/util';
+import { parseSfen } from 'shogiops/sfen';
+import { isDrop, isNormal } from 'shogiops/types';
+import { parseUsi } from 'shogiops/util';
+import { Shogi } from 'shogiops/variant/shogi';
+import { pieceForcePromote } from 'shogiops/variant/util';
+import { path as pathOps } from 'tree';
+import { MoveTest, Puzzle, Vm } from './interfaces';
 import { plyColor } from './util';
-import { backrank, secondBackrank } from 'shogiops/variantUtil';
-import { isDrop, Role } from 'shogiops/types';
-import { Shogi } from 'shogiops/shogi';
-import { parseUsi } from 'shogiops';
-import { pretendItsUsi } from 'common';
 
 type MoveTestReturn = undefined | 'fail' | 'win' | MoveTest;
 
-function isForcedPromotion(u1: string, u2: string, turn: Color, role?: Role): boolean {
-  const m1 = parseUsi(pretendItsUsi(u1));
-  const m2 = parseUsi(pretendItsUsi(u2));
-  if (!role || !m1 || !m2 || isDrop(m1) || isDrop(m2) || m1.from != m2.from || m1.to != m2.to) return false;
-  return (
-    (role === 'knight' && secondBackrank('shogi')(turn).has(m1.to)) ||
-    ((role === 'pawn' || role === 'lance' || role === 'knight') && backrank('shogi')(turn).has(m1.to))
-  );
+// checks whether both usi actually aren't the same, although it doesn't look like it at first
+// for example - 1i1a+ === 1i1a if promotion is forced anyways
+function sameMove(u1: string, u2: string, shogi: Shogi): boolean {
+  const usi1 = parseUsi(u1)!,
+    usi2 = parseUsi(u2)!;
+  if (isDrop(usi1) && isDrop(usi2)) {
+    return usi1.role === usi2.role && usi1.to === usi2.to;
+  } else if (isNormal(usi1) && isNormal(usi2)) {
+    const role = shogi.board.getRole(usi1.to);
+    return (
+      usi1.from === usi2.from &&
+      usi1.to === usi2.to &&
+      (!!usi1.promotion === !!usi2.promotion ||
+        (!!role && pieceForcePromote('standard')({ role: role, color: shogi.turn }, usi1.to)))
+    );
+  }
+  return false;
 }
 
 export default function moveTest(vm: Vm, puzzle: Puzzle): MoveTestReturn {
@@ -34,13 +42,11 @@ export default function moveTest(vm: Vm, puzzle: Puzzle): MoveTestReturn {
   }));
 
   for (const i in nodes) {
-    const shogi = parseSfen(nodes[i].sfen).chain(s => Shogi.fromSetup(s, false));
-    if (shogi.isOk && shogi.value.isCheckmate()) return (vm.node.puzzle = 'win');
+    const shogi = parseSfen('standard', nodes[i].sfen, false).unwrap() as Shogi;
+    if (shogi.isCheckmate()) return (vm.node.puzzle = 'win');
     const usi = nodes[i].usi!,
       solUsi = puzzle.solution[i];
-    const role = shogi.isOk ? shogi.value.board.getRole(parseUsi(usi)!.to) : undefined;
-    if (usi != solUsi && !isForcedPromotion(usi, solUsi, opposite(playedByColor), role))
-      return (vm.node.puzzle = 'fail');
+    if (!sameMove(usi, solUsi, shogi)) return (vm.node.puzzle = 'fail');
   }
 
   const nextUsi = puzzle.solution[nodes.length];
@@ -50,7 +56,7 @@ export default function moveTest(vm: Vm, puzzle: Puzzle): MoveTestReturn {
   vm.node.puzzle = 'good';
 
   return {
-    move: parseUsi(pretendItsUsi(nextUsi))!,
+    move: parseUsi(nextUsi)!,
     sfen: vm.node.sfen,
     path: vm.path,
   };

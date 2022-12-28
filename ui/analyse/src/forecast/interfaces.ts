@@ -1,4 +1,4 @@
-import { Prop } from 'common';
+import { Prop } from 'common/common';
 
 export interface ForecastData {
   onMyTurn?: boolean;
@@ -8,8 +8,9 @@ export interface ForecastData {
 export interface ForecastStep {
   ply: Ply;
   usi: Usi;
+  notation: string;
   sfen: Sfen;
-  check?: Key;
+  check?: boolean;
 }
 
 export interface ForecastCtrl {

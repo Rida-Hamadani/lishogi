@@ -50,7 +50,7 @@ final class Tv(
 }
 
 object Tv {
-  import shogi.{ Speed => S, variant => V }
+  import shogi.{ variant => V, Speed => S }
   import lila.rating.{ PerfType => P }
 
   case class Champion(user: LightUser, rating: Int, gameId: Game.ID)
@@ -127,6 +127,13 @@ object Tv {
           secondsSinceLastMove = 30,
           filters = Seq(variant(V.Minishogi))
         )
+    case object Chushogi
+        extends Channel(
+          name = V.Chushogi.name,
+          icon = P.Chushogi.iconChar.toString,
+          secondsSinceLastMove = 60 * 6,
+          filters = Seq(variant(V.Chushogi))
+        )
     case object Bot
         extends Channel(
           name = "Bot",
@@ -149,6 +156,7 @@ object Tv {
       Classical,
       UltraBullet,
       Minishogi,
+      Chushogi,
       Bot,
       Computer
     )
@@ -157,7 +165,7 @@ object Tv {
     }.toMap
   }
 
-  //private def rated(min: Int)                         = (c: Candidate) => c.game.rated && hasMinRating(c.game, min)
+  // private def rated(min: Int)                         = (c: Candidate) => c.game.rated && hasMinRating(c.game, min)
   private def minRating(min: Int)                     = (c: Candidate) => hasMinRating(c.game, min)
   private def speed(speed: shogi.Speed)               = (c: Candidate) => c.game.speed == speed
   private def variant(variant: shogi.variant.Variant) = (c: Candidate) => c.game.variant == variant

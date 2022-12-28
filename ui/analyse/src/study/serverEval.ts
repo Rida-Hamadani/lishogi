@@ -1,8 +1,8 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
+import { Prop, defined, prop } from 'common/common';
+import { bind, onInsert } from 'common/snabbdom';
+import spinner from 'common/spinner';
+import { VNode, h } from 'snabbdom';
 import AnalyseCtrl from '../ctrl';
-import { spinner, bind, onInsert } from '../util';
-import { Prop, prop, defined } from 'common';
 
 export interface ServerEvalCtrl {
   requested: Prop<boolean>;

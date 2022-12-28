@@ -1,62 +1,46 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import { parseSfen } from 'shogiops/sfen';
-import * as shogiground from './ground';
-import { bind, onInsert, dataIcon, spinner, bindMobileMousedown } from './util';
-import { defined } from 'common';
-import changeColorHandle from 'common/coordsColor';
+import { view as cevalView } from 'ceval';
+import { defined } from 'common/common';
+import { bindMobileMousedown } from 'common/mobile';
+import { bind, bindNonPassive, dataIcon, onInsert } from 'common/snabbdom';
+import spinner from 'common/spinner';
+import stepwiseScroll from 'common/wheel';
 import { getPlayer, playable } from 'game';
 import * as router from 'game/router';
 import statusView from 'game/view/status';
+import { parseSfen } from 'shogiops/sfen';
+import { VNode, h } from 'snabbdom';
 import { path as treePath } from 'tree';
-import { render as renderTreeView } from './treeView/treeView';
-import * as control from './control';
+import { render as acplView } from './acpl';
 import { view as actionMenu } from './actionMenu';
-import { view as renderPromotion } from './promotion';
 import renderClocks from './clocks';
-import * as notationExport from './notationExport';
-import forecastView from './forecast/forecastView';
-import { view as cevalView } from 'ceval';
-import handView from './hands/handView';
-import { view as keyboardView } from './keyboard';
+import * as control from './control';
+import AnalyseCtrl from './ctrl';
 import explorerView from './explorer/explorerView';
-import retroView from './retrospect/retroView';
+import forecastView from './forecast/forecastView';
+import { view as forkView } from './fork';
+import * as gridHacks from './gridHacks';
+import * as shogiground from './ground';
+import { ConcealOf } from './interfaces';
+import { view as keyboardView } from './keyboard';
+import * as notationExport from './notationExport';
 import practiceView from './practice/practiceView';
+import retroView from './retrospect/retroView';
+import serverSideUnderboard from './serverSideUnderboard';
 import * as gbEdit from './study/gamebook/gamebookEdit';
 import * as gbPlay from './study/gamebook/gamebookPlayView';
 import { StudyCtrl } from './study/interfaces';
-import * as studyView from './study/studyView';
-import * as studyPracticeView from './study/practice/studyPracticeView';
-import { view as forkView } from './fork';
-import { render as acplView } from './acpl';
-import AnalyseCtrl from './ctrl';
-import { ConcealOf } from './interfaces';
-import relayManager from './study/relay/relayManagerView';
-import relayIntro from './study/relay/relayIntroView';
 import renderPlayerBars from './study/playerBars';
-import serverSideUnderboard from './serverSideUnderboard';
-import * as gridHacks from './gridHacks';
-import { setupPosition } from 'shogiops/variant';
-import { lishogiVariantRules } from 'shogiops/compat';
+import * as studyPracticeView from './study/practice/studyPracticeView';
+import relayIntro from './study/relay/relayIntroView';
+import relayManager from './study/relay/relayManagerView';
+import * as studyView from './study/studyView';
+import { render as renderTreeView } from './treeView/treeView';
 
 const li = window.lishogi;
 
 function renderResult(ctrl: AnalyseCtrl): VNode[] {
-  let result: string | undefined;
-  if (ctrl.data.game.status.id >= 30)
-    switch (ctrl.data.game.winner) {
-      case 'sente':
-        result = '1-0';
-        break;
-      case 'gote':
-        result = '0-1';
-        break;
-      default:
-        result = '½-½';
-    }
   const tags: VNode[] = [];
-  if (result) {
-    tags.push(h('div.result', result));
+  if (ctrl.data.game.status.id >= 30) {
     const winner = getPlayer(ctrl.data, ctrl.data.game.winner!);
     tags.push(
       h('div.status', [
@@ -97,16 +81,6 @@ function renderAnalyse(ctrl: AnalyseCtrl, concealOf?: ConcealOf) {
   );
 }
 
-function wheel(ctrl: AnalyseCtrl, e: WheelEvent) {
-  const target = e.target as HTMLElement;
-  if (target.tagName !== 'PIECE' && target.tagName !== 'SQUARE' && target.tagName !== 'CG-BOARD') return;
-  e.preventDefault();
-  if (e.deltaY > 0) control.next(ctrl);
-  else if (e.deltaY < 0) control.prev(ctrl);
-  ctrl.redraw();
-  return false;
-}
-
 function inputs(ctrl: AnalyseCtrl): VNode | undefined {
   if (ctrl.ongoing || !ctrl.data.userAnalysis) return;
   if (ctrl.redirecting) return spinner();
@@ -126,13 +100,8 @@ function inputs(ctrl: AnalyseCtrl): VNode | undefined {
               ctrl.sfenInput = el.value;
               el.addEventListener('input', _ => {
                 ctrl.sfenInput = el.value;
-                const setup = parseSfen(el.value.trim());
-                el.setCustomValidity(
-                  setup.isOk &&
-                    setupPosition(lishogiVariantRules(ctrl.data.game.variant.key), setup.unwrap(), false).isOk
-                    ? ''
-                    : 'Invalid SFEN'
-                );
+                const position = parseSfen(ctrl.data.game.variant.key, el.value.trim());
+                el.setCustomValidity(position.isOk ? '' : 'Invalid SFEN');
               });
             });
           },
@@ -344,7 +313,6 @@ function controls(ctrl: AnalyseCtrl) {
 function forceInnerCoords(ctrl: AnalyseCtrl, v: boolean) {
   if (ctrl.data.pref.coords == 2) {
     $('body').toggleClass('coords-in', v).toggleClass('coords-out', !v);
-    changeColorHandle();
   }
 }
 
@@ -394,7 +362,6 @@ export default function (ctrl: AnalyseCtrl): VNode {
         'has-players': !!playerBars,
         'has-clocks': !!clocks,
         'has-intro': !!intro,
-        //'analyse-hunter': ctrl.opts.hunter,
       },
     },
     [
@@ -405,20 +372,30 @@ export default function (ctrl: AnalyseCtrl): VNode {
           addChapterId(study, 'div.analyse__board.main-board'),
           {
             hook:
-              window.lishogi.hasTouchEvents || ctrl.gamebookPlay()
+              window.lishogi.hasTouchEvents || ctrl.gamebookPlay() || window.lishogi.storage.get('scrollMoves') == '0'
                 ? undefined
-                : bind('wheel', (e: WheelEvent) => wheel(ctrl, e)),
+                : bindNonPassive(
+                    'wheel',
+                    stepwiseScroll((e: WheelEvent, scroll: boolean) => {
+                      if (ctrl.gamebookPlay()) return;
+                      const target = e.target as HTMLElement;
+                      if (target.tagName !== 'SG-PIECES') return;
+                      e.preventDefault();
+                      if (e.deltaY > 0 && scroll) control.next(ctrl);
+                      else if (e.deltaY < 0 && scroll) control.prev(ctrl);
+                      ctrl.redraw();
+                    })
+                  ),
           },
           [
             ...(clocks || []),
             playerBars ? playerBars[ctrl.bottomIsSente() ? 1 : 0] : null,
-            shogiground.render(ctrl),
+            shogiground.renderBoard(ctrl),
             playerBars ? playerBars[ctrl.bottomIsSente() ? 0 : 1] : null,
-            renderPromotion(ctrl),
           ]
         ),
       gaugeOn && !intro ? cevalView.renderGauge(ctrl) : null,
-      intro ? null : handView(ctrl, ctrl.topColor(), 'top'),
+      intro || ctrl.data.game.variant.key === 'chushogi' ? null : shogiground.renderHand(ctrl, 'top'),
       gamebookPlayView ||
         (intro
           ? null
@@ -433,7 +410,7 @@ export default function (ctrl: AnalyseCtrl): VNode {
                     retroView(ctrl) || practiceView(ctrl) || explorerView(ctrl),
                   ]),
             ])),
-      intro ? null : handView(ctrl, ctrl.bottomColor(), 'bottom'),
+      intro || ctrl.data.game.variant.key === 'chushogi' ? null : shogiground.renderHand(ctrl, 'bottom'),
       gamebookPlayView || intro ? null : controls(ctrl),
       ctrl.embed || intro
         ? null

@@ -1,7 +1,5 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-
-import { Redraw, Open, bind, header } from './util';
+import { VNode, h } from 'snabbdom';
+import { Close, Redraw, bind, header } from './util';
 
 type Piece = string;
 
@@ -11,37 +9,52 @@ export interface PieceData {
 }
 
 export interface PieceCtrl {
-  data: PieceData;
+  std: PieceData;
+  chu: PieceData;
   trans: Trans;
   set(t: Piece): void;
-  open: Open;
+  close: Close;
 }
 
-export function ctrl(data: PieceData, trans: Trans, redraw: Redraw, open: Open): PieceCtrl {
+export function ctrl(std: PieceData, chu: PieceData, trans: Trans, redraw: Redraw, close: Close): PieceCtrl {
   return {
     trans,
-    data: data,
+    std: std,
+    chu: chu,
     set(t: Piece) {
-      data.current = t;
+      if (isChu(t)) chu.current = t;
+      else std.current = t;
+
       applyPiece(t);
-      $.post('/pref/pieceSet', {
+      $.post(`/pref/${isChu(t) ? 'chuPieceSet' : 'pieceSet'}`, {
         set: t,
       }).fail(() => window.lishogi.announce({ msg: 'Failed to save piece set preference' }));
       redraw();
     },
-    open,
+    close,
   };
 }
 
 export function view(ctrl: PieceCtrl): VNode {
   return h('div.sub.piece.', [
-    header(ctrl.trans.noarg('pieceSet'), () => ctrl.open('links')),
-    h('div.list', ctrl.data.list.map(pieceView(ctrl.data.current, ctrl.set))),
+    header(ctrl.trans.noarg('pieceSet'), () => ctrl.close()),
+    h('div.list', ctrl.std.list.map(pieceView(ctrl.std.current, ctrl.set))),
+    h('div.chu-piece.text', { attrs: { 'data-icon': '(' } }, ctrl.trans.noarg('chushogi')),
+    h('div.list', ctrl.chu.list.map(pieceView(ctrl.chu.current, ctrl.set))),
   ]);
 }
 
 function pieceImage(t: Piece) {
-  return `piece/${t}/0KI.svg`;
+  const piece = isChu(t) ? '0_KIRIN' : '0KI';
+  return `piece/${t}/${piece}.${isPngPiece(t) ? 'png' : 'svg'}`;
+}
+
+function isChu(t: Piece): boolean {
+  return t.startsWith('Chu_');
+}
+
+function isPngPiece(t: Piece): boolean {
+  return t === 'Portella' || t === 'Portella_2Kanji' || t === 'Intl_Portella';
 }
 
 function pieceView(current: Piece, set: (t: Piece) => void) {
@@ -56,7 +69,9 @@ function pieceView(current: Piece, set: (t: Piece) => void) {
       [
         h('piece', {
           attrs: {
-            style: `background-image:url(${window.lishogi.assetUrl(pieceImage(t))})`,
+            style: `background-image:url(${window.lishogi.assetUrl(pieceImage(t))}); will-change: ${
+              isPngPiece(t) ? 'transform' : 'auto'
+            }`,
           },
         }),
       ]
@@ -64,6 +79,9 @@ function pieceView(current: Piece, set: (t: Piece) => void) {
 }
 
 function applyPiece(t: Piece) {
-  const sprite = $('#piece-sprite');
-  sprite.attr('href', sprite.attr('href').replace(/\w+\.css/, t + '.css'));
+  const sprite = $(`#${isChu(t) ? 'chu-' : ''}piece-sprite`);
+  if (sprite.length) sprite.attr('href', sprite.attr('href').replace(/\w+\.css/, t + '.css'));
+
+  if (isChu(t)) document.body.dataset.chuPieceSet = t;
+  else document.body.dataset.pieceSet = t;
 }

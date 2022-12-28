@@ -1,7 +1,7 @@
-import RoundController from './ctrl';
-import { Step } from './interfaces';
 import viewStatus from 'game/view/status';
 import { toBlackWhite } from 'shogiops/util';
+import RoundController from './ctrl';
+import { Step } from './interfaces';
 
 export function setup(ctrl: RoundController) {
   window.lishogi.pubsub.on('speech.enabled', onSpeechChange(ctrl));
@@ -18,11 +18,12 @@ function onSpeechChange(ctrl: RoundController) {
 
 export function status(ctrl: RoundController) {
   const s = viewStatus(ctrl);
-  if (s == 'playingRightNow') window.LishogiSpeech!.step(ctrl.stepAt(ctrl.ply), false);
+  if (s === 'playingRightNow') window.LishogiSpeech!.step(ctrl.stepAt(ctrl.ply), false);
   else {
-    withSpeech(speech => speech.say(s, false));
-    const w = ctrl.data.game.winner;
-    if (w) withSpeech(speech => speech.say(ctrl.noarg(toBlackWhite(w) + 'IsVictorious'), false));
+    withSpeech(_ => window.lishogi.sound.say({ en: s, jp: s }, false));
+    const w = ctrl.data.game.winner,
+      text = w && ctrl.noarg(toBlackWhite(w) + 'IsVictorious');
+    if (text) withSpeech(_ => window.lishogi.sound.say({ en: text, jp: text }, false));
   }
 }
 

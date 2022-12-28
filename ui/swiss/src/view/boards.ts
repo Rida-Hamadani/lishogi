@@ -1,7 +1,6 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import { player as renderPlayer } from './util';
+import { VNode, h } from 'snabbdom';
 import { Board, BoardPlayer } from '../interfaces';
+import { player as renderPlayer } from './util';
 
 export function many(boards: Board[]): VNode {
   return h('div.swiss__boards.now-playing', boards.map(renderBoard));
@@ -36,6 +35,6 @@ function miniBoard(board: Board) {
         },
       },
     },
-    [h('div.cg-wrap')]
+    [h('div.sg-wrap')]
   );
 }

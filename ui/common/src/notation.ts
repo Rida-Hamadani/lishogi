@@ -1,11 +1,12 @@
-import { Move, parseUsi, Position } from 'shogiops';
-import { lishogiVariantRules } from 'shogiops/compat';
-import { parseSfen } from 'shogiops/sfen';
+import { Notation as sgNotation } from 'shogiground/types';
 import { makeJapaneseMove } from 'shogiops/notation/japanese';
 import { makeKitaoKawasakiMove } from 'shogiops/notation/kitaoKawasaki';
 import { makeWesternMove } from 'shogiops/notation/western';
 import { makeWesternEngineMove } from 'shogiops/notation/westernEngine';
-import { setupPosition } from 'shogiops/variant';
+import { parseSfen } from 'shogiops/sfen';
+import { Move, Square } from 'shogiops/types';
+import { parseUsi } from 'shogiops/util';
+import { Position } from 'shogiops/variant/position';
 
 export const enum Notation {
   Western,
@@ -17,16 +18,37 @@ export const enum Notation {
 // Notations, that should be displayed with ☖/☗
 export const notationsWithColor = [Notation.Kawasaki, Notation.Japanese];
 
-export function makeNotationWithPosition(notation: Notation, pos: Position, move: Move, lastMove?: Move): string {
+export function notationFiles(notation: Notation): sgNotation {
+  if (notation === Notation.Western) return sgNotation.HEX;
+  else return sgNotation.NUMERIC;
+}
+
+export function notationRanks(notation: Notation): sgNotation {
+  switch (notation) {
+    case Notation.Japanese:
+      return sgNotation.JAPANESE;
+    case Notation.WesternEngine:
+      return sgNotation.ENGINE;
+    default:
+      return sgNotation.HEX;
+  }
+}
+
+export function makeNotationWithPosition(
+  notation: Notation,
+  pos: Position,
+  move: Move,
+  lastMove?: Move | { to: Square }
+): string {
   switch (notation) {
     case Notation.Kawasaki:
       return makeKitaoKawasakiMove(pos, move, lastMove?.to)!;
     case Notation.Japanese:
       return makeJapaneseMove(pos, move, lastMove?.to)!;
     case Notation.WesternEngine:
-      return makeWesternMove(pos, move)!;
-    default:
       return makeWesternEngineMove(pos, move)!;
+    default:
+      return makeWesternMove(pos, move)!;
   }
 }
 
@@ -34,7 +56,7 @@ export function makeNotationLineWithPosition(
   notation: Notation,
   pos: Position,
   moves: Move[],
-  lastMove?: Move
+  lastMove?: Move | { to: Square }
 ): MoveNotation[] {
   pos = pos.clone();
   const moveLine = [];
@@ -58,7 +80,7 @@ export function makeNotation(
   return makeNotationWithPosition(notation, pos, parseUsi(usi)!, lastMove);
 }
 
-export function makeMoveNotationLine(
+export function makeNotationLine(
   notation: Notation,
   sfen: Sfen,
   variant: VariantKey,
@@ -74,7 +96,5 @@ export function makeMoveNotationLine(
 }
 
 function createPosition(sfen: Sfen, variant: VariantKey): Position {
-  const rules = lishogiVariantRules(variant);
-  const setup = parseSfen(sfen).unwrap();
-  return setupPosition(rules, setup, false).unwrap();
+  return parseSfen(variant, sfen, false).unwrap();
 }

@@ -1,5 +1,5 @@
-import { Prop } from 'common';
-import { StoredProp, StoredJsonProp } from 'common/storage';
+import { Prop } from 'common/common';
+import { StoredJsonProp, StoredProp } from 'common/storage';
 
 export interface Hovering {
   sfen: Sfen;

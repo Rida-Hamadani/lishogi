@@ -424,7 +424,7 @@ final class Study(
       NotationRateLimitPerIp(HTTPRequest lastRemoteAddress ctx.req) {
         OptionFuResult(env.study.api byId id) { study =>
           CanViewResult(study) {
-            lila.mon.export.notation.study.increment()
+            lila.mon.notation.study.increment()
             val flags = requestNotationFlags(ctx.req, csa)
             Ok.chunked(env.study.notationDump(study, flags))
               .withHeaders(
@@ -443,12 +443,12 @@ final class Study(
       env.study.api.byIdWithChapter(id, chapterId) flatMap {
         _.fold(notFound) { case WithChapter(study, chapter) =>
           CanViewResult(study) {
-            lila.mon.export.notation.studyChapter.increment()
+            lila.mon.notation.studyChapter.increment()
             val flags = requestNotationFlags(ctx.req, csa)
             Ok(env.study.notationDump.ofChapter(study, flags)(chapter).toString)
               .withHeaders(
                 CONTENT_DISPOSITION -> s"attachment; filename=${env.study.notationDump
-                  .filename(study, chapter)}${fileType(flags)}"
+                    .filename(study, chapter)}${fileType(flags)}"
               )
               .as(notationContentType)
               .fuccess

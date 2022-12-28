@@ -1,54 +1,92 @@
-import changeColorHandle from 'common/coordsColor';
+import { notationFiles, notationRanks } from 'common/notation';
 import resizeHandle from 'common/resize';
-import { Shogiground } from 'shogiground';
-import { Config as CgConfig } from 'shogiground/config';
+import { Config as SgConfig } from 'shogiground/config';
+import { Piece, Role } from 'shogiops/types';
+import { parseSquare } from 'shogiops/util';
+import { pieceCanPromote, pieceForcePromote, promote } from 'shogiops/variant/util';
+import { VNode, h } from 'snabbdom';
 import { Controller } from '../interfaces';
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
 
-export default function (ctrl: Controller): VNode {
-  return h('div.cg-wrap', {
+export function renderBoard(ctrl: Controller): VNode {
+  return h('div.sg-wrap', {
     hook: {
-      insert: vnode => ctrl.ground(Shogiground(vnode.elm as HTMLElement, makeConfig(ctrl))),
-      destroy: _ => ctrl.ground()!.destroy(),
+      insert: vnode => {
+        ctrl.shogiground.set(makeConfig(ctrl));
+        ctrl.shogiground.attach({ board: vnode.elm as HTMLElement });
+      },
     },
   });
 }
 
-function makeConfig(ctrl: Controller): CgConfig {
-  const opts = ctrl.makeCgOpts();
+export function renderHand(ctrl: Controller, pos: 'top' | 'bottom'): VNode {
+  return h(`div.sg-hand-wrap.hand-${pos}`, {
+    hook: {
+      insert: vnode => {
+        ctrl.shogiground.attach({
+          hands: {
+            top: pos === 'top' ? (vnode.elm as HTMLElement) : undefined,
+            bottom: pos === 'bottom' ? (vnode.elm as HTMLElement) : undefined,
+          },
+        });
+      },
+    },
+  });
+}
+
+function makeConfig(ctrl: Controller): SgConfig {
+  const opts = ctrl.makeSgOpts();
   return {
     sfen: opts.sfen,
     orientation: opts.orientation,
     turnColor: opts.turnColor,
-    check: opts.check,
-    lastMove: opts.lastMove,
-    coordinates: ctrl.pref.coords !== 0,
+    activeColor: opts.activeColor,
+    checks: opts.checks,
+    lastDests: opts.lastDests,
+    coordinates: {
+      enabled: ctrl.pref.coords !== 0,
+      files: notationFiles(ctrl.pref.notation),
+      ranks: notationRanks(ctrl.pref.notation),
+    },
     movable: {
       free: false,
-      color: opts.movable!.color,
       dests: opts.movable!.dests,
       showDests: ctrl.pref.destination,
     },
+    droppable: {
+      free: false,
+      dests: opts.droppable!.dests,
+      showDests: ctrl.pref.destination && ctrl.pref.dropDestination,
+    },
+    promotion: {
+      promotesTo: (role: Role) => {
+        return promote('standard')(role);
+      },
+      movePromotionDialog: (orig: Key, dest: Key) => {
+        const piece = ctrl.shogiground.state.pieces.get(orig) as Piece;
+        return (
+          !!piece &&
+          pieceCanPromote('standard')(piece, parseSquare(orig)!, parseSquare(dest)!, undefined) &&
+          !pieceForcePromote('standard')(piece, parseSquare(dest)!)
+        );
+      },
+      forceMovePromotion: (orig: Key, dest: Key) => {
+        const piece = ctrl.shogiground.state.pieces.get(orig) as Piece;
+        return !!piece && pieceForcePromote('standard')(piece, parseSquare(dest)!);
+      },
+    },
     draggable: {
       enabled: ctrl.pref.moveEvent > 0,
-      showGhost: ctrl.pref.highlight,
+      showGhost: ctrl.pref.highlightLastDests,
+      showTouchSquareOverlay: ctrl.pref.squareOverlay,
     },
     selectable: {
       enabled: ctrl.pref.moveEvent !== 1,
     },
     events: {
       move: ctrl.userMove,
-      dropNewPiece: ctrl.userDrop,
+      drop: ctrl.userDrop,
       insert(elements) {
-        resizeHandle(elements, 2, ctrl.vm.node.ply, _ => true);
-        if (ctrl.pref.coords == 1) changeColorHandle();
-      },
-      select: () => {
-        if (ctrl.vm.dropmodeActive && !ctrl.getDropmodeActive()) {
-          ctrl.vm.dropmodeActive = false;
-          ctrl.redraw();
-        }
+        if (elements) resizeHandle(elements, 2, ctrl.vm.node.ply, _ => true);
       },
     },
     premovable: {
@@ -57,22 +95,17 @@ function makeConfig(ctrl: Controller): CgConfig {
     predroppable: {
       enabled: opts.predroppable!.enabled,
     },
-    dropmode: {
-      dropDests: opts.dropmode!.dropDests,
-      showDropDests: ctrl.pref.destination && ctrl.pref.dropDestination,
-    },
     drawable: {
       enabled: true,
     },
     highlight: {
-      lastMove: ctrl.pref.highlight,
-      check: ctrl.pref.highlight,
+      lastDests: ctrl.pref.highlightLastDests,
+      check: ctrl.pref.highlightCheck,
     },
     animation: {
       enabled: true,
       duration: ctrl.pref.animation.duration,
     },
-    notation: ctrl.pref.pieceNotation ?? 0,
     disableContextMenu: true,
   };
 }

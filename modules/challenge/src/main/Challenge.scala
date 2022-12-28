@@ -1,7 +1,7 @@
 package lila.challenge
 
 import shogi.format.forsyth.Sfen
-import shogi.variant.{ Minishogi, Variant }
+import shogi.variant.Variant
 import shogi.{ Color, Mode, Speed }
 import org.joda.time.DateTime
 
@@ -122,8 +122,8 @@ object Challenge {
 
   sealed trait TimeControl
   object TimeControl {
-    case object Unlimited                extends TimeControl
-    case class Correspondence(days: Int) extends TimeControl
+    case object Unlimited                        extends TimeControl
+    case class Correspondence(days: Int)         extends TimeControl
     case class Clock(config: shogi.Clock.Config) extends TimeControl {
       // All durations are expressed in seconds
       def limit     = config.limit

@@ -1,10 +1,10 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
+import { Prop, prop } from 'common/common';
+import { MaybeVNodes, bindNonPassive, bindSubmit } from 'common/snabbdom';
+import { VNode, h } from 'snabbdom';
+import { Redraw } from '../interfaces';
 import * as modal from '../modal';
-import { prop, Prop } from 'common';
-import { bind, bindSubmit, emptyRedButton } from '../util';
+import { emptyRedButton } from '../util';
 import { StudyData } from './interfaces';
-import { Redraw, MaybeVNodes } from '../interfaces';
 import RelayCtrl from './relay/relayCtrl';
 
 export interface StudyFormCtrl {
@@ -251,9 +251,7 @@ export function view(ctrl: StudyFormCtrl): VNode {
                   action: '/study/' + data.id + '/clear-chat',
                   method: 'post',
                 },
-                hook: bind('submit', _ => {
-                  return confirm(ctrl.trans.noarg('deleteTheStudyChatHistory'));
-                }),
+                hook: bindNonPassive('submit', _ => confirm(ctrl.trans.noarg('deleteTheStudyChatHistory'))),
               },
               [h(emptyRedButton, ctrl.trans.noarg('clearChat'))]
             ),
@@ -264,9 +262,7 @@ export function view(ctrl: StudyFormCtrl): VNode {
               action: '/study/' + data.id + '/delete',
               method: 'post',
             },
-            hook: bind('submit', _ => {
-              return isNew || confirm(ctrl.trans.noarg('deleteTheEntireStudy'));
-            }),
+            hook: bindNonPassive('submit', _ => isNew || confirm(ctrl.trans.noarg('deleteTheEntireStudy'))),
           },
           [h(emptyRedButton, ctrl.trans.noarg(isNew ? 'cancel' : 'deleteStudy'))]
         ),

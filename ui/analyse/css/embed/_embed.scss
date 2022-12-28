@@ -8,9 +8,14 @@ $mq-col1: 9999px;
 
 @import '../tools';
 @import '../action-menu';
+@import '../controls';
 @import 'layout';
 @import 'footer';
 @import 'not-found';
+
+body {
+  overflow-y: auto;
+}
 
 .chapter-name {
   @extend %roboto;
@@ -20,7 +25,7 @@ $mq-col1: 9999px;
   text-align: center;
 }
 
-cg-board {
+sg-board {
   border-radius: 0;
   box-shadow: none;
 }

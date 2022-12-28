@@ -1,7 +1,5 @@
 package views.html.plan
 
-import play.api.i18n.Lang
-
 import lila.api.Context
 import lila.app.templating.Environment._
 import lila.app.ui.ScalatagsTemplate._
@@ -24,7 +22,6 @@ object index {
       title = becomePatron.txt(),
       moreCss = cssTag("plan"),
       moreJs = frag(
-        //script(src := "https://js.stripe.com/v3/"),
         jsTag("checkout.js"),
         embedJsUnsafe(s"""lishogi.checkout("$stripePublicKey");""")
       ),
@@ -75,14 +72,13 @@ object index {
           div(cls := "box__pad")(
             div(cls := "wrapper")(
               div(cls := "text")(
-                p(weRelyOnSupport()),
-                p("Donations through Patreon will be handled manually within 24 hours.")
+                p(if (ctx.isAuth) weRelyOnSupport() else donationSupport())
               ),
               div(cls := "content")(
                 div(
-                  cls := "plan_checkout",
-                  attr("data-email") := email.map(_.value),
-                  attr("data-lifetime-usd") := lila.plan.Cents.lifetime.usd.toString,
+                  cls                         := "plan_checkout",
+                  attr("data-email")          := email.map(_.value),
+                  attr("data-lifetime-usd")   := lila.plan.Cents.lifetime.usd.toString,
                   attr("data-lifetime-cents") := lila.plan.Cents.lifetime.value
                 )(
                   raw(s"""
@@ -135,14 +131,19 @@ object index {
 </form>"""),
                   patron.exists(_.isLifetime) option
                     p(style := "text-align:center;margin-bottom:1em")(makeExtraDonation()),
-                  st.group(cls := "radio buttons freq")(
+                  st.group(
+                    cls := List(
+                      "radio buttons freq" -> true,
+                      "anon"               -> ctx.isAnon
+                    )
+                  )(
                     div(
                       st.title := payLifetimeOnce.txt(lila.plan.Cents.lifetime.usd),
-                      cls := List("lifetime-check" -> patron.exists(_.isLifetime)),
+                      cls      := List("lifetime-check" -> patron.exists(_.isLifetime)),
                       input(
-                        tpe := "radio",
+                        tpe  := "radio",
                         name := "freq",
-                        id := "freq_lifetime",
+                        id   := "freq_lifetime",
                         patron.exists(_.isLifetime) option disabled,
                         value := "lifetime"
                       ),
@@ -151,9 +152,9 @@ object index {
                     div(
                       st.title := recurringBilling.txt(),
                       input(
-                        tpe := "radio",
+                        tpe  := "radio",
                         name := "freq",
-                        id := "freq_monthly",
+                        id   := "freq_monthly",
                         checked,
                         value := "monthly"
                       ),
@@ -162,9 +163,9 @@ object index {
                     div(
                       st.title := singleDonation.txt(),
                       input(
-                        tpe := "radio",
+                        tpe  := "radio",
                         name := "freq",
-                        id := "freq_onetime",
+                        id   := "freq_onetime",
                         checked,
                         value := "onetime"
                       ),
@@ -177,22 +178,22 @@ object index {
                         val id = s"plan_${cents.value}"
                         div(
                           input(
-                            tpe := "radio",
-                            name := "plan",
+                            tpe   := "radio",
+                            name  := "plan",
                             st.id := id,
                             cents.usd.value == 10 option checked,
-                            value := cents.value,
-                            attr("data-usd") := cents.usd.toString,
+                            value               := cents.value,
+                            attr("data-usd")    := cents.usd.toString,
                             attr("data-amount") := cents.value
                           ),
                           label(`for` := id)(cents.usd.toString)
                         )
                       },
-                      div(cls := "other")(
+                      div(cls     := "other")(
                         input(tpe := "radio", name := "plan", id := "plan_other", value := "other"),
                         label(
-                          `for` := "plan_other",
-                          title := pleaseEnterAmount.txt(),
+                          `for`                    := "plan_other",
+                          title                    := pleaseEnterAmount.txt(),
                           attr("data-trans-other") := otherAmount.txt()
                         )(otherAmount())
                       )
@@ -207,16 +208,13 @@ object index {
                     )
                   ),
                   div(cls := "service")(
-                    a(cls := "patreon button", href := "https://www.patreon.com/lishogi", target := "_blank")(
-                      "Patreon"
-                    ),
                     button(cls := "paypal button")(withPaypal())
                   )
                 )
               )
             ),
             p(id := "error")(),
-            p(cls := "small_team")(weAreSmallTeam()),
+            ctx.isAuth option p(cls := "small_team")(weAreSmallTeam()),
             faq,
             div(cls := "best_patrons")(
               h2(celebratedPatrons()),
@@ -232,23 +230,29 @@ object index {
     }
   }
 
-  private def faq(implicit lang: Lang) =
+  private def faq(implicit ctx: Context) =
     div(cls := "faq")(
-      dl(
+      ctx.isAuth option dl(
         dt(changeMonthlySupport()),
         dd(
           changeOrContact(a(href := routes.Main.contact, target := "_blank")(contactSupport()))
-        ),
+        )
+      ),
+      dl(
         dt(otherMethods()),
         dd(
-          bitcoin(code("13kg1w1K3TXr1y82cDQHKAGQJphz4qGUDH"))
+          frag(trans.yes(), " - "),
+          a(cls := "patreon", href := "https://www.patreon.com/lishogi", target := "_blank")(
+            "Patreon"
+          ),
+          ".",
+          ctx.isAuth option " Donations through Patreon will be handled manually within few days."
         )
       ),
       dl(
         dt(patronFeatures()),
         dd(
-          noPatronFeatures(),
-          br,
+          if (ctx.isAuth) frag(noPatronFeatures(), br) else frag(trans.no(), ". "),
           a(href := routes.Plan.features, target := "_blank")(featuresComparison()),
           "."
         )

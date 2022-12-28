@@ -19,7 +19,7 @@ $c-bg-low: hsl($c-site-hue, 7%, 22%);
 $c-bg-zebra: hsl($c-site-hue, 5%, 18%);
 $c-bg-zebra2: hsl($c-site-hue, 5%, 23%);
 
-$c-body-gradient: hsl($c-site-hue, 12%, 16%);
+$c-body-gradient: hsl($c-site-hue, 6%, 16%);
 
 $c-font: hsl(0, 0%, 73%);
 $c-font-dim: c-light($c-font, 60%);
@@ -56,6 +56,16 @@ $c-warn-over: $c-brag-over;
 /* Bad: red */
 $c-bad: $c-error;
 $c-bad-over: $c-error-over;
+
+/* move error highlights */
+$c-inaccuracy: hsl(202, 78%, 62%);
+$c-mistake: hsl(41, 100%, 45%);
+$c-blunder: hsl(0, 69%, 60%);
+
+/* good move highlights */
+$c-good-move: hsl(130, 67%, 62%);
+$c-brilliant: hsl(129, 71%, 45%);
+$c-interesting: hsl(307, 80%, 70%);
 
 $c-link: $c-primary;
 $c-link-dim: $c-primary-dim;

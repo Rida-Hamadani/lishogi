@@ -6,11 +6,10 @@ import play.api.libs.json._
 
 import lila.common.ApiVersion
 import lila.game.JsonView._
-import lila.game.{ Pov, Game, Player => GamePlayer }
+import lila.game.{ Game, Player => GamePlayer, Pov }
 import lila.pref.Pref
 import lila.user.{ User, UserRepo }
 
-import shogi.format.forsyth.Sfen
 import shogi.Clock
 
 import actorApi.SocketStatus
@@ -25,7 +24,6 @@ final class JsonView(
     divider: lila.game.Divider,
     evalCache: lila.evalCache.EvalCacheApi,
     isOfferingRematch: Pov => Boolean,
-    animation: AnimationDuration,
     moretime: MoretimeDuration
 )(implicit ec: scala.concurrent.ExecutionContext) {
 
@@ -83,25 +81,25 @@ final class JsonView(
             ),
             "pref" -> Json
               .obj(
-                "animationDuration" -> animationDuration(pov, pref),
+                "animationDuration" -> animationMillis(pov, pref),
                 "coords"            -> pref.coords,
                 "resizeHandle"      -> pref.resizeHandle,
                 "replay"            -> pref.replay,
                 "clockTenths"       -> pref.clockTenths,
                 "clockCountdown"    -> pref.clockCountdown,
                 "moveEvent"         -> pref.moveEvent,
-                "pieceNotation"     -> pref.pieceNotation
+                "notation"          -> pref.notation
               )
-              .add("clockBar" -> pref.clockBar)
               .add("clockSound" -> pref.clockSound)
               .add("confirmResign" -> (!nvui && pref.confirmResign == Pref.ConfirmResign.YES))
               .add("keyboardMove" -> (!nvui && pref.keyboardMove == Pref.KeyboardMove.YES))
               .add("blindfold" -> pref.isBlindfold)
-              .add("highlight" -> pref.highlight)
+              .add("highlightLastDests" -> pref.highlightLastDests)
+              .add("highlightCheck" -> pref.highlightCheck)
+              .add("squareOverlay" -> pref.squareOverlay)
               .add("destination" -> (pref.destination && !pref.isBlindfold))
               .add("dropDestination" -> (pref.dropDestination && !pref.isBlindfold))
               .add("enablePremove" -> pref.premove)
-              .add("showCaptured" -> pref.captured)
               .add("submitMove" -> {
                 import Pref.SubmitMove._
                 pref.submitMove match {
@@ -117,8 +115,6 @@ final class JsonView(
           .add("correspondence" -> game.correspondenceClock)
           .add("takebackable" -> takebackable)
           .add("moretimeable" -> moretimeable)
-          //.add("possibleMoves" -> possibleMoves(pov, apiVersion))
-          //.add("possibleDrops" -> possibleDrops(pov))
           .add("expiration" -> game.expirable.option {
             Json.obj(
               "idleMillis"   -> (nowMillis - game.movedAt.getMillis),
@@ -177,19 +173,20 @@ final class JsonView(
             ),
             "pref" -> Json
               .obj(
-                "animationDuration" -> animationDuration(pov, pref),
+                "animationDuration" -> animationMillis(pov, pref),
                 "coords"            -> pref.coords,
                 "resizeHandle"      -> pref.resizeHandle,
                 "replay"            -> pref.replay,
                 "clockTenths"       -> pref.clockTenths,
                 "clockCountdown"    -> pref.clockCountdown,
-                "pieceNotation"     -> pref.pieceNotation
+                "moveEvent"         -> pref.moveEvent,
+                "notation"          -> pref.notation
               )
-              .add("clockBar" -> pref.clockBar)
-              .add("highlight" -> pref.highlight)
+              .add("highlightLastDests" -> pref.highlightLastDests)
+              .add("highlightCheck" -> pref.highlightCheck)
+              .add("squareOverlay" -> pref.squareOverlay)
               .add("destination" -> (pref.destination && !pref.isBlindfold))
-              .add("dropDestination" -> (pref.dropDestination && !pref.isBlindfold))
-              .add("showCaptured" -> pref.captured),
+              .add("dropDestination" -> (pref.dropDestination && !pref.isBlindfold)),
             "evalPut" -> JsBoolean(me.??(evalCache.shouldPut))
           )
           .add("evalPut" -> me.??(evalCache.shouldPut))
@@ -242,13 +239,15 @@ final class JsonView(
         "orientation" -> orientation.name,
         "pref" -> Json
           .obj(
-            "animationDuration" -> animationDuration(pov, pref),
+            "animationDuration" -> animationMillis(pov, pref),
             "coords"            -> pref.coords,
             "moveEvent"         -> pref.moveEvent,
             "resizeHandle"      -> pref.resizeHandle,
-            "pieceNotation"     -> pref.pieceNotation
+            "notation"          -> pref.notation
           )
-          .add("highlight" -> pref.highlight)
+          .add("highlightLastDests" -> pref.highlightLastDests)
+          .add("highlightCheck" -> pref.highlightCheck)
+          .add("squareOverlay" -> pref.squareOverlay)
           .add("destination" -> (pref.destination && !pref.isBlindfold))
           .add("dropDestination" -> (pref.dropDestination && !pref.isBlindfold)),
         "path"         -> pov.game.plies,
@@ -266,22 +265,10 @@ final class JsonView(
   private def clockJson(clock: Clock): JsObject =
     clockWriter.writes(clock) + ("moretime" -> JsNumber(moretimeSeconds))
 
-
-  private def animationFactor(pref: Pref): Float =
-    pref.animation match {
-      case 0 => 0
-      case 1 => 0.5f
-      case 2 => 1
-      case 3 => 2
-      case _ => 1
-    }
-
-  private def animationDuration(pov: Pov, pref: Pref) =
-    math.round {
-      animationFactor(pref) * animation.value.toMillis * {
-        if (pov.game.finished) 1
-        else math.max(0, math.min(1.2, ((pov.game.estimateTotalTime - 60) / 60) * 0.2))
-      }
+  private def animationMillis(pov: Pov, pref: Pref) =
+    pref.animationMillis * {
+      if (pov.game.finished) 1
+      else math.max(0, math.min(1.2, ((pov.game.estimateTotalTime - 60) / 60) * 0.2))
     }
 }
 

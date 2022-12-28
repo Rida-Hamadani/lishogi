@@ -1,8 +1,7 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import RelayCtrl from './relayCtrl';
-import { dataIcon, bind, onInsert } from '../../util';
+import { bind, dataIcon, onInsert } from 'common/snabbdom';
+import { VNode, h } from 'snabbdom';
 import { LogEvent } from './interfaces';
+import RelayCtrl from './relayCtrl';
 
 export default function (ctrl: RelayCtrl): VNode | undefined {
   if (ctrl.members.canContribute())

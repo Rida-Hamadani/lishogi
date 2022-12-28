@@ -1,26 +1,28 @@
+import * as sg from 'shogiground/types';
+import { Role } from 'shogiops/types';
 import { h } from 'snabbdom';
-import * as cg from 'shogiground/types';
-import { Step, Redraw } from './interfaces';
-import RoundController from './ctrl';
 import { ClockController } from './clock/clockCtrl';
-import { valid as handValid } from './hands/handCtrl';
-import { sendPromotion } from './promotion';
+import RoundController from './ctrl';
+import { Redraw, Step } from './interfaces';
 import { onInsert } from './util';
-import { parseHands } from 'shogiops/sfen';
-import { lastStep } from './round';
 
-export type KeyboardMoveHandler = (sfen: Sfen, dests?: cg.Dests, yourMove?: boolean) => void;
+export type KeyboardMoveHandler = (
+  sfen: Sfen,
+  moveDests: sg.MoveDests | undefined,
+  dropDests: sg.DropDests | undefined,
+  yourMove?: boolean
+) => void;
 
 export interface KeyboardMove {
-  drop(key: cg.Key, piece: string): void;
-  promote(orig: cg.Key, dest: cg.Key, piece: string): void;
+  move(orig: Key, dest: Key, promotion: boolean): void;
+  drop(key: Key, role: Role): void;
+  lastDest: Key | undefined;
   update(step: Step, yourMove?: boolean): void;
   registerHandler(h: KeyboardMoveHandler): void;
   hasFocus(): boolean;
   setFocus(v: boolean): void;
-  move(orig: cg.Key, dest: cg.Key): void;
-  select(key: cg.Key): void;
-  hasSelected(): cg.Key | undefined;
+  select(key: Key): void;
+  hasSelected(): Key | undefined;
   confirmMove(): void;
   usedMove: boolean;
   jump(delta: number): void;
@@ -28,76 +30,50 @@ export interface KeyboardMove {
   clock(): ClockController | undefined;
 }
 
-const sanToRole: { [key: string]: cg.Role } = {
-  P: 'pawn',
-  L: 'lance',
-  N: 'knight',
-  S: 'silver',
-  G: 'gold',
-  B: 'bishop',
-  R: 'rook',
-  K: 'king',
-  H: 'horse',
-  D: 'dragon',
-};
-
 export function ctrl(root: RoundController, step: Step, redraw: Redraw): KeyboardMove {
   let focus = false;
   let handler: KeyboardMoveHandler | undefined;
   let preHandlerBuffer = step.sfen;
   let lastSelect = Date.now();
-  const cgState = root.shogiground.state;
-  const select = function (key: cg.Key): void {
-    if (cgState.selected === key) root.shogiground.cancelMove();
+  const sgState = root.shogiground.state;
+  const select = function (key: Key, prom?: boolean): void {
+    if (sgState.selected === key) root.shogiground.cancelMove();
     else {
-      root.shogiground.selectSquare(key, true);
+      root.shogiground.selectSquare(key, prom, true);
       lastSelect = Date.now();
     }
   };
   let usedMove = false;
   return {
-    drop(key, piece) {
-      const role = sanToRole[piece];
+    move(orig, dest, prom) {
+      usedMove = true;
+      root.shogiground.cancelMove();
+      root.shogiground.move(orig, dest, prom);
+    },
+    drop(key, role) {
       const color = root.data.player.color;
-      const parsedHands = parseHands(lastStep(root.data).sfen.split(' ')[2] || '-');
-      // Square occupied
-      if (!role || parsedHands.isErr || cgState.pieces[key]) return;
       // Piece not in hand
-      if (parsedHands.value[color][role] === 0) return;
-      if (!handValid(root, role, key)) return;
       root.shogiground.cancelMove();
-      root.shogiground.newPiece({ role, color }, key);
-      root.sendNewPiece(role, key, false);
+      root.shogiground.drop({ role, color }, key);
     },
-    promote(orig, dest, piece) {
-      const role = sanToRole[piece];
-      if (!role) return;
-      root.shogiground.cancelMove();
-      sendPromotion(root, orig, dest, role, { premove: false });
-    },
+    lastDest: sgState.lastDests && sgState.lastDests[sgState.lastDests.length - 1],
     update(step, yourMove: boolean = false) {
-      if (handler) handler(step.sfen, cgState.movable.dests, yourMove);
+      if (handler) handler(step.sfen, sgState.movable.dests, sgState.droppable.dests, yourMove);
       else preHandlerBuffer = step.sfen;
     },
     registerHandler(h: KeyboardMoveHandler) {
       handler = h;
-      if (preHandlerBuffer) handler(preHandlerBuffer, cgState.movable.dests);
+      if (preHandlerBuffer) handler(preHandlerBuffer, sgState.movable.dests, sgState.droppable.dests);
     },
     hasFocus: () => focus,
     setFocus(v) {
       focus = v;
       redraw();
     },
-    move(orig, dest) {
-      usedMove = true;
-      root.shogiground.cancelMove();
-      select(orig);
-      select(dest);
-    },
     select,
-    hasSelected: () => cgState.selected,
+    hasSelected: () => sgState.selected,
     confirmMove() {
-      root.submitMove(true);
+      root.submitUsi(true);
     },
     usedMove,
     jump(delta: number) {

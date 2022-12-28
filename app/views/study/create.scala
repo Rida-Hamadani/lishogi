@@ -20,22 +20,22 @@ object create {
     views.html.site.message(
       title = trans.toStudy.txt(),
       icon = Some("4"),
-      back = data.sfen.map(sf => routes.Editor.load(sf.value).url),
+      back = data.sfen.map(sf => routes.Editor.parseArg(s"${data.variantStr}/${sf.value}").url),
       moreCss = cssTag("study.create").some
     ) {
       div(cls := "study-create")(
         postForm(action := routes.Study.create)(
-          input(tpe := "hidden", name := "gameId", value := data.gameId),
-          input(tpe := "hidden", name := "orientation", value := data.orientationStr),
-          input(tpe := "hidden", name := "sfen", value := data.sfen.map(_.value)),
-          input(tpe := "hidden", name := "notation", value := data.notationStr),
-          input(tpe := "hidden", name := "variant", value := data.variantStr),
+          input(tpe     := "hidden", name := "gameId", value      := data.gameId),
+          input(tpe     := "hidden", name := "orientation", value := data.orientationStr),
+          input(tpe     := "hidden", name := "sfen", value        := data.sfen.map(_.value)),
+          input(tpe     := "hidden", name := "notation", value    := data.notationStr),
+          input(tpe     := "hidden", name := "variant", value     := data.variantStr),
           h2(trans.study.whereDoYouWantToStudyThat()),
           p(
             submitButton(
-              name := "as",
-              value := "study",
-              cls := "submit button large new text",
+              name     := "as",
+              value    := "study",
+              cls      := "submit button large new text",
               dataIcon := "4"
             )(trans.study.createStudy())
           ),

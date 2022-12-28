@@ -1,16 +1,15 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import { prop, Prop } from 'common';
-import AnalyseController from '../ctrl';
-import { makeConfig as makeCgConfig } from '../ground';
-import { Shogiground } from 'shogiground';
-import { Redraw, AnalyseData, MaybeVNodes } from '../interfaces';
+import { Prop, prop } from 'common/common';
+import { MaybeVNodes, bind } from 'common/snabbdom';
 import { Player } from 'game';
-import { renderMove, renderPieces, renderBoard, styleSetting, Style } from 'nvui/shogi';
-import { renderSetting } from 'nvui/setting';
-import { Notify } from 'nvui/notify';
 import { commands } from 'nvui/command';
-import { bind } from '../util';
+import { Notify } from 'nvui/notify';
+import { renderSetting } from 'nvui/setting';
+import { Style, renderBoard, renderMove, renderPieces, styleSetting } from 'nvui/shogi';
+import { Shogiground } from 'shogiground';
+import { VNode, h } from 'snabbdom';
+import AnalyseController from '../ctrl';
+import { makeConfig as makeSgConfig } from '../ground';
+import { AnalyseData, Redraw } from '../interfaces';
 
 window.lishogi.AnalyseNVUI = function (redraw: Redraw) {
   const notify = new Notify(redraw),
@@ -26,11 +25,13 @@ window.lishogi.AnalyseNVUI = function (redraw: Redraw) {
       const d = ctrl.data,
         style = moveStyle.get();
       if (!ctrl.shogiground)
-        ctrl.shogiground = Shogiground(document.createElement('div'), {
-          ...makeCgConfig(ctrl),
+        ctrl.shogiground = Shogiground({
+          ...makeSgConfig(ctrl),
           animation: { enabled: false },
           drawable: { enabled: false },
-          coordinates: false,
+          coordinates: {
+            enabled: false,
+          },
         });
       return h('main.analyse', [
         h('div.nvui', [
@@ -160,10 +161,7 @@ function renderAcpl(ctrl: AnalyseController, style: Style): MaybeVNodes | undefi
       h(
         'select',
         {
-          hook: bind('change', e => {
-            ctrl.jumpToMain(parseInt((e.target as HTMLSelectElement).value));
-            ctrl.redraw();
-          }),
+          hook: bind('change', e => ctrl.jumpToMain(parseInt((e.target as HTMLSelectElement).value)), ctrl.redraw),
         },
         analysisNodes
           .filter(n => (n.ply % 2 === 1) === (color === 'sente'))

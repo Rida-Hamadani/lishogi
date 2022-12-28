@@ -69,6 +69,30 @@ const highcharts = () =>
     })
     .pipe(gulp.dest('../../public/vendor/highcharts-4.2.5/'));
 
+const spectrum = () =>
+  gulp
+    .src(['dist/spectrum.min.js', 'dist/spectrum.min.css'], {
+      cwd: path.dirname(require.resolve('spectrum/package.json')),
+      cwdbase: true,
+    })
+    .pipe(gulp.dest('../../public/vendor/spectrum/'));
+
+const fairy = () =>
+  gulp
+    .src(['stockfish.js', 'stockfish.wasm', 'stockfish.worker.js'], {
+      cwd: path.dirname(require.resolve('fairy-stockfish-nnue.wasm/package.json')),
+      cwdbase: true,
+    })
+    .pipe(gulp.dest('../../public/vendor/fairy/'));
+
+const yaneuraou = () =>
+  gulp
+    .src(['lib/yaneuraou.k-p.js', 'lib/yaneuraou.k-p.wasm', 'lib/yaneuraou.k-p.worker.js'], {
+      cwd: path.dirname(require.resolve('@mizarjp/yaneuraou.k-p/package.json')),
+      cwdbase: true,
+    })
+    .pipe(gulp.dest('../../public/vendor/yaneuraou.k-p/'));
+
 const prodSource = () =>
   browserify(browserifyOpts('src/index.ts', false))
     .plugin(tsify)
@@ -112,17 +136,16 @@ function makeBundle(filename) {
 }
 
 const gitSha = cb => {
-  const info = JSON.stringify({
-    date: new Date(new Date().toUTCString()).toISOString().split('.')[0] + '+00:00',
-    commit: execSync('git rev-parse -q --short HEAD', {
-      encoding: 'utf-8',
-    }).trim(),
-    message: execSync('git log -1 --pretty=%s', { encoding: 'utf-8' }).trim(),
-  });
+  const latestCommit = JSON.parse(execSync('curl -s https://api.github.com/repos/WandererXII/lishogi/commits/master')),
+    info = JSON.stringify({
+      date: new Date(new Date().toUTCString()).toISOString().split('.')[0] + '+00:00',
+      commit: (latestCommit.sha || '').trim(),
+      message: (latestCommit.commit?.message || '').trim(),
+    });
   if (!fs.existsSync('./dist')) fs.mkdirSync('./dist');
   fs.writeFileSync(
     './dist/consolemsg.js',
-    `window.lishogi=window.lishogi||{};console.info("Lishogi is open source! https://github.com/WandererXII/lila");lishogi.info=${info};`
+    `window.lishogi=window.lishogi||{};console.info("Lishogi is open source! https://github.com/WandererXII/lishogi");lishogi.info=${info};`
   );
   cb();
 };
@@ -138,7 +161,7 @@ const standalonesJs = () =>
     .pipe(terser({ safari10: true }))
     .pipe(destination());
 
-function singlePackage(file, dest) {
+function singlePackageBabel(file, dest) {
   return () =>
     browserify(browserifyOpts(file, false))
       .transform(babelify, { presets: ['@babel/preset-env'], global: true })
@@ -149,9 +172,19 @@ function singlePackage(file, dest) {
       .pipe(destination());
 }
 
+function singlePackage(file, dest) {
+  return () =>
+    browserify(browserifyOpts(file, false))
+      .bundle()
+      .pipe(source(dest))
+      .pipe(buffer())
+      .pipe(terser({ safari10: false }))
+      .pipe(destination());
+}
+
 const userMod = singlePackage('./src/user-mod.js', 'user-mod.js');
 const clas = singlePackage('./src/clas.js', 'clas.js');
-const captcha = singlePackage('./src/standalones/captcha.js', 'captcha.js');
+const captcha = singlePackageBabel('./src/standalones/captcha.js', 'captcha.js');
 
 const deps = makeDependencies('lishogi.deps.js');
 
@@ -167,6 +200,9 @@ const tasks = [
   hopscotch,
   jqueryBarRating,
   highcharts,
+  spectrum,
+  fairy,
+  yaneuraou,
 ];
 
 const dev = gulp.series(tasks.concat([devSource]));

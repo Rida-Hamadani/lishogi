@@ -16,6 +16,7 @@ trait ScalatagsAttrs {
   val dataDev          = attr("data-dev")
   val dataTheme        = attr("data-theme")
   val dataPieceSet     = attr("data-piece-set")
+  val dataChuPieceSet  = attr("data-chu-piece-set")
   val dataTag          = attr("data-tag")
   val dataIcon         = attr("data-icon")
   val dataHref         = attr("data-href")
@@ -24,6 +25,7 @@ trait ScalatagsAttrs {
   val datatime24h      = attr("data-time_24h")
   val dataColor        = attr("data-color")
   val dataSfen         = attr("data-sfen")
+  val dataVariant      = attr("data-variant")
   val dataRel          = attr("data-rel")
   val novalidate       = attr("novalidate").empty
   val datetimeAttr     = attr("datetime")
@@ -69,10 +71,10 @@ trait ScalatagsSnippets extends Cap {
 
   val utcLink =
     a(
-      href := "https://time.is/UTC",
+      href   := "https://time.is/UTC",
       target := "_blank",
-      rel := "noopener",
-      title := "Coordinated Universal Time"
+      rel    := "noopener",
+      title  := "Coordinated Universal Time"
     )("UTC")
 }
 

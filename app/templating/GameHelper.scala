@@ -1,14 +1,14 @@
 package lila.app
 package templating
 
-import shogi.{ Status => S, Color, Clock, Mode }
+import shogi.{ Clock, Color, Mode, Status => S }
 import controllers.routes
 import play.api.i18n.Lang
 
 import lila.api.Context
 import lila.app.ui.ScalatagsTemplate._
 import lila.game.{ Game, Namer, Player, Pov }
-import lila.i18n.{ I18nKeys => trans, defaultLang }
+import lila.i18n.{ defaultLang, I18nKeys => trans }
 import lila.user.{ Title, User }
 
 trait GameHelper { self: I18nHelper with UserHelper with AiHelper with StringHelper with ShogigroundHelper =>
@@ -17,6 +17,7 @@ trait GameHelper { self: I18nHelper with UserHelper with AiHelper with StringHel
   private val dataColor    = attr("data-color")
   private val dataSfen     = attr("data-sfen")
   private val dataLastmove = attr("data-lastmove")
+  private val dataVariant  = attr("data-variant")
 
   def netBaseUrl: String
   def cdnUrl(path: String): String
@@ -63,13 +64,11 @@ trait GameHelper { self: I18nHelper with UserHelper with AiHelper with StringHel
       case (Some(w), _, TryRule)                            => s"${playerText(w)} won by try rule"
       case (Some(w), _, Impasse27)                          => s"${playerText(w)} won by impasse"
       case (_, Some(l), PerpetualCheck)                     => s"${playerText(l)} lost due to perpetual check"
-      case (_, _, Draw | UnknownFinish)                     => "Game is a draw"
-      case (_, _, Aborted)                                  => "Game has been aborted"
-      case (_, _, VariantEnd) =>
-        game.variant match {
-          case _ => "Perpetual check"
-        }
-      case _ => "Game is still being played"
+      case (Some(w), _, RoyalsLost)     => s"${playerText(w)} won by capturing all royal pieces"
+      case (Some(w), _, BareKing)       => s"${playerText(w)} won due to bare king rule"
+      case (_, _, Draw | UnknownFinish) => "Game is a draw"
+      case (_, _, Aborted)              => "Game has been aborted"
+      case _                            => "Game is still being played"
     }
     val moves = s"${game.shogi.plies} moves"
     s"$p1 plays $p2 in a $mode $speedAndClock game of $variant. $result after $moves. Click to replay, analyse, and discuss the game!"
@@ -146,8 +145,8 @@ trait GameHelper { self: I18nHelper with UserHelper with AiHelper with StringHel
         )
       case Some(user) =>
         frag(
-          (if (link) a else span)(
-            cls := userClass(user.id, cssClass, withOnline),
+          (if (link) a else span) (
+            cls  := userClass(user.id, cssClass, withOnline),
             href := s"${routes.User show user.name}${if (mod) "?mod" else ""}"
           )(
             withOnline option frag(lineIcon(user), " "),
@@ -156,7 +155,7 @@ trait GameHelper { self: I18nHelper with UserHelper with AiHelper with StringHel
               frag(" ", showRatingDiff(d))
             },
             engine option span(
-              cls := "tos_violation",
+              cls   := "tos_violation",
               title := trans.thisAccountViolatedTos.txt()
             )
           ),
@@ -178,7 +177,9 @@ trait GameHelper { self: I18nHelper with UserHelper with AiHelper with StringHel
       case S.Stalemate      => trans.stalemate.txt()
       case S.TryRule        => "Try Rule"
       case S.Impasse27      => trans.impasse.txt()
-      case S.PerpetualCheck => "Perpetual Check"
+      case S.PerpetualCheck => trans.perpetualCheck.txt()
+      case S.RoyalsLost     => trans.royalsLost.txt()
+      case S.BareKing       => trans.bareKing.txt()
       case S.Timeout =>
         game.loser match {
           case Some(p) if p.color.sente => trans.blackLeftTheGame.txt()
@@ -192,11 +193,7 @@ trait GameHelper { self: I18nHelper with UserHelper with AiHelper with StringHel
         s"$color didn't move"
       }
       case S.Cheat => trans.cheatDetected.txt()
-      case S.VariantEnd =>
-        game.variant match {
-          case _ => trans.variantEnding.txt()
-        }
-      case _ => ""
+      case _       => ""
     }
 
   private def gameTitle(game: Game, color: Color): String = {
@@ -246,35 +243,38 @@ trait GameHelper { self: I18nHelper with UserHelper with AiHelper with StringHel
     val game     = pov.game
     val isLive   = withLive && game.isBeingPlayed
     val cssClass = isLive ?? ("live mini-board-" + game.id)
-    val variant  = game.variant.key
+    val variant  = game.variant
     val tag      = if (withLink) a else span
     tag(
-      href := withLink.option(gameLink(game, pov.color, ownerLink, tv)),
+      href  := withLink.option(gameLink(game, pov.color, ownerLink, tv)),
       title := withTitle.option(gameTitle(game, pov.color)),
-      cls := s"mini-board mini-board-${game.id} cg-wrap parse-sfen $cssClass variant-$variant",
-      dataLive := isLive.option(game.id),
-      dataColor := pov.color.name,
-      dataSfen := game.situation.toSfen.value,
-      dataLastmove := ~game.lastMoveKeys
-    )(cgWrapContent)
+      cls :=
+        s"mini-board mini-board-${game.id} sg-wrap parse-sfen $cssClass d-${variant.numberOfFiles}x${variant.numberOfRanks}",
+      dataLive     := isLive.option(game.id),
+      dataColor    := pov.color.name,
+      dataSfen     := game.situation.toSfen.value,
+      dataLastmove := ~game.lastMoveKeys,
+      dataVariant  := game.variant.key
+    )(sgWrapContent)
   }
 
   def gameSfenNoCtx(pov: Pov, tv: Boolean = false, blank: Boolean = false): Frag = {
     val isLive  = pov.game.isBeingPlayed
-    val variant = pov.game.variant.key
+    val variant = pov.game.variant
     a(
-      href := (if (tv) routes.Tv.index else routes.Round.watcher(pov.gameId, pov.color.name)),
+      href  := (if (tv) routes.Tv.index else routes.Round.watcher(pov.gameId, pov.color.name)),
       title := gameTitle(pov.game, pov.color),
       cls := List(
-        s"mini-board mini-board-${pov.gameId} cg-wrap parse-sfen variant-$variant" -> true,
-        s"live mini-board-${pov.gameId}"                                           -> isLive
+        s"mini-board mini-board-${pov.gameId} sg-wrap parse-sfen d-${variant.numberOfFiles}x${variant.numberOfRanks}" -> true,
+        s"live mini-board-${pov.gameId}" -> isLive
       ),
-      dataLive := isLive.option(pov.gameId),
-      dataColor := pov.color.name,
-      dataSfen := pov.game.situation.toSfen.value,
+      dataLive     := isLive.option(pov.gameId),
+      dataColor    := pov.color.name,
+      dataSfen     := pov.game.situation.toSfen.value,
       dataLastmove := ~pov.game.lastMoveKeys,
-      target := blank.option("_blank")
-    )(cgWrapContent)
+      dataVariant  := pov.game.variant.key,
+      target       := blank.option("_blank")
+    )(sgWrapContent)
   }
 
   def challengeTitle(c: lila.challenge.Challenge) = {

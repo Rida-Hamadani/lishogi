@@ -1,11 +1,13 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
+import { MaybeVNodes, bind } from 'common/snabbdom';
+import spinner from 'common/spinner';
 import { Shogiground } from 'shogiground';
 import { opposite } from 'shogiground/util';
-import { StudyCtrl, ChapterPreview, ChapterPreviewPlayer, Position } from './interfaces';
-import { MaybeVNodes } from '../interfaces';
+import { usiToSquareNames } from 'shogiops/compat';
+import { forsythToRole, roleToForsyth } from 'shogiops/sfen';
+import { handRoles } from 'shogiops/variant/util';
+import { VNode, h } from 'snabbdom';
+import { ChapterPreview, ChapterPreviewPlayer, Position, StudyCtrl } from './interfaces';
 import { multiBoard as xhrLoad } from './studyXhr';
-import { bind, spinner } from '../util';
 
 export class MultiBoardCtrl {
   loading: boolean = false;
@@ -75,6 +77,7 @@ export function view(ctrl: MultiBoardCtrl, study: StudyCtrl): VNode | undefined 
 
 function renderPager(pager: Paginator<ChapterPreview>, study: StudyCtrl): MaybeVNodes {
   const ctrl = study.multiBoard;
+  if (pager.currentPageResults.some(p => p.variant.key === 'chushogi')) window.lishogi.loadChushogiPieceSprite();
   return [
     h('div.top', [renderPagerNav(pager, ctrl), renderPlayingToggle(ctrl)]),
     h('div.now-playing', pager.currentPageResults.map(makePreview(study))),
@@ -122,10 +125,10 @@ function makePreview(study: StudyCtrl) {
     const contents = preview.players
       ? [
           makePlayer(preview.players[opposite(preview.orientation)]),
-          makeCg(preview),
+          makeSg(preview),
           makePlayer(preview.players[preview.orientation]),
         ]
-      : [h('div.name', preview.name), makeCg(preview)];
+      : [h('div.name', preview.name), makeSg(preview)];
     return h(
       'a.' + preview.id,
       {
@@ -151,31 +154,46 @@ function makePlayer(player: ChapterPreviewPlayer): VNode {
 }
 
 function usiToLastMove(lm?: string): Key[] | undefined {
-  return lm ? ((lm.includes('*') ? [lm.slice(2)] : [lm[0] + lm[1], lm[2] + lm[3]]) as Key[]) : undefined;
+  return lm ? usiToSquareNames(lm) : undefined;
 }
 
-function makeCg(preview: ChapterPreview): VNode {
-  return h(`div.mini-board.cg-wrap.variant-${preview.variant.key}`, {
+function makeSg(preview: ChapterPreview): VNode {
+  const variant = preview.variant.key;
+  return h(`div.mini-board.sg-wrap.variant-${variant}`, {
     hook: {
       insert(vnode) {
-        const cg = Shogiground(vnode.elm as HTMLElement, {
-          coordinates: false,
-          drawable: { enabled: false, visible: false },
-          resizable: false,
-          viewOnly: true,
-          orientation: preview.orientation,
-          sfen: preview.sfen,
-          hasPockets: true,
-          pockets: preview.sfen && preview.sfen.split(' ').length > 2 ? preview.sfen.split(' ')[2] : '',
-          lastMove: usiToLastMove(preview.lastMove),
-        });
-        vnode.data!.cp = { cg, sfen: preview.sfen };
+        const sg = Shogiground(
+          {
+            coordinates: { enabled: false },
+            drawable: { enabled: false, visible: false },
+            viewOnly: true,
+            orientation: preview.orientation,
+            sfen: {
+              board: preview.sfen,
+              hands: preview.sfen && preview.sfen.split(' ').length > 2 ? preview.sfen.split(' ')[2] : '',
+            },
+            hands: {
+              inlined: true,
+              roles: handRoles(variant),
+            },
+            lastDests: usiToLastMove(preview.lastMove),
+            forsyth: {
+              fromForsyth: forsythToRole(variant),
+              toForsyth: roleToForsyth(variant),
+            },
+          },
+          { board: vnode.elm as HTMLElement }
+        );
+        vnode.data!.cp = { sg, sfen: preview.sfen };
       },
       postpatch(old, vnode) {
         if (old.data!.cp.sfen !== preview.sfen) {
-          old.data!.cp.cg.set({
-            sfen: preview.sfen,
-            lastMove: usiToLastMove(preview.lastMove),
+          old.data!.cp.sg.set({
+            sfen: {
+              board: preview.sfen,
+              hands: preview.sfen && preview.sfen.split(' ').length > 2 ? preview.sfen.split(' ')[2] : '',
+            },
+            lastDests: usiToLastMove(preview.lastMove),
           });
           old.data!.cp.sfen = preview.sfen;
         }

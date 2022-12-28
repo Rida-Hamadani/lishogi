@@ -9,7 +9,7 @@ import lila.common.Json._
 import lila.common.Maths
 import lila.common.config.BaseUrl
 
-import shogi.{ Centis, Color, Replay, Situation, Game => ShogiGame }
+import shogi.{ Centis, Color, Game => ShogiGame, Replay, Situation }
 import shogi.format.forsyth.Sfen
 import shogi.format.usi.Usi
 
@@ -30,9 +30,9 @@ final class GifExport(
           .addHttpHeaders("Content-Type" -> "application/json")
           .withBody(
             Json.obj(
-              "black"       -> Namer.playerTextBlocking(pov.game.sentePlayer, withRating = true)(lightUserApi.sync),
-              "white"       -> Namer.playerTextBlocking(pov.game.gotePlayer, withRating = true)(lightUserApi.sync),
-              "comment"     -> s"${baseUrl.value}/${pov.game.id} rendered with https://github.com/WandererXII/lishogi-gif",
+              "black" -> Namer.playerTextBlocking(pov.game.sentePlayer, withRating = true)(lightUserApi.sync),
+              "white" -> Namer.playerTextBlocking(pov.game.gotePlayer, withRating = true)(lightUserApi.sync),
+              "comment" -> s"${baseUrl.value}/${pov.game.id} rendered with https://github.com/WandererXII/lishogi-gif",
               "orientation" -> pov.color.engName,
               "delay"       -> targetMedianTime.centis, // default delay for frames
               "frames"      -> frames(pov.game)
@@ -57,7 +57,7 @@ final class GifExport(
         "orientation" -> game.firstColor.engName
       ) ::: List(
         game.lastMoveKeys.map { "lastMove" -> _ },
-        game.situation.checkSquares.headOption.map { "check" -> _.usiKey }
+        game.situation.checkSquares.headOption.map { "check" -> _.key }
       ).flatten
 
       lightUserApi preloadMany game.userIds flatMap { _ =>
@@ -139,6 +139,6 @@ final class GifExport(
         "sfen"     -> situation.toSfen,
         "lastMove" -> usi.map(_.usi)
       )
-      .add("check", situation.checkSquares.headOption.map(_.usiKey))
+      .add("check", situation.checkSquares.headOption.map(_.key))
       .add("delay", delay.map(_.centis))
 }

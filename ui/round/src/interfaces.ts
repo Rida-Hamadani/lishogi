@@ -1,13 +1,11 @@
-import { VNode } from 'snabbdom/vnode';
+import { ChatPlugin } from 'chat';
 import { GameData, Status } from 'game';
-import { ClockData, Seconds, Centis } from './clock/clockCtrl';
+import { MoveMetadata as SgMoveMetadata } from 'shogiground/types';
+import { Role } from 'shogiops/types';
+import { VNode } from 'snabbdom';
+import { Centis, ClockData, Seconds } from './clock/clockCtrl';
 import { CorresClockData } from './corresClock/corresClockCtrl';
 import RoundController from './ctrl';
-import { ChatPlugin } from 'chat';
-import * as cg from 'shogiground/types';
-
-export type MaybeVNode = VNode | null | undefined;
-export type MaybeVNodes = MaybeVNode[];
 
 export type Redraw = () => void;
 
@@ -25,16 +23,10 @@ export interface SocketOpts {
   millis?: number;
 }
 
-export interface SocketMove {
+export interface SocketUsi {
   u: Usi;
   b?: 1;
 }
-export interface SocketDrop {
-  u: Usi;
-  b?: 1;
-}
-
-export type Dests = cg.Dests;
 
 export interface RoundData extends GameData {
   clock?: ClockData;
@@ -88,7 +80,8 @@ export interface Chat {
 export interface Step {
   ply: Ply;
   sfen: Sfen;
-  usi: Usi;
+  usi?: Usi;
+  notation?: string;
   check?: boolean;
 }
 
@@ -105,7 +98,7 @@ export interface ApiMove extends Step {
   check: boolean;
   sDraw: boolean;
   gDraw: boolean;
-  role?: cg.Role;
+  role?: Role;
   drops?: string;
   promotion?: boolean;
   isMove?: true;
@@ -131,7 +124,6 @@ export interface ApiEnd {
 export interface Pref {
   animationDuration: number;
   blindfold: boolean;
-  clockBar: boolean;
   clockSound: boolean;
   clockTenths: 0 | 1 | 2;
   clockCountdown: 0 | 3 | 5 | 10;
@@ -140,20 +132,18 @@ export interface Pref {
   destination: boolean;
   dropDestination: boolean;
   enablePremove: boolean;
-  highlight: boolean;
+  highlightLastDests: boolean;
+  highlightCheck: boolean;
+  squareOverlay: boolean;
   keyboardMove: boolean;
   moveEvent: 0 | 1 | 2;
   replay: 0 | 1 | 2;
   submitMove: boolean;
   resizeHandle: 0 | 1 | 2;
-  pieceNotation: number;
+  notation: number;
 }
 
-export interface MoveMetadata {
-  premove?: boolean;
-  justDropped?: cg.Role;
-  justCaptured?: cg.Piece;
-}
+export type MoveMetadata = Partial<SgMoveMetadata>;
 
 export type Position = 'top' | 'bottom';
 

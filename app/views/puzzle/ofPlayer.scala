@@ -24,15 +24,15 @@ object ofPlayer {
           form(
             action := routes.Puzzle.ofPlayer(),
             method := "get",
-            cls := "form3 puzzle-of-player__form complete-parent"
+            cls    := "form3 puzzle-of-player__form complete-parent"
           )(
             st.input(
-              name := "name",
-              value := query,
-              cls := "form-control user-autocomplete",
-              placeholder := "Lishogi username",
+              name         := "name",
+              value        := query,
+              cls          := "form-control user-autocomplete",
+              placeholder  := "Lishogi username",
               autocomplete := "off",
-              dataTag := "span",
+              dataTag      := "span",
               autofocus
             ),
             submitButton(cls := "button")("Search puzzles")
@@ -52,17 +52,17 @@ object ofPlayer {
                     div(cls := "puzzle-of-player__pager infinite-scroll")(
                       pager.currentPageResults.map { puzzle =>
                         div(cls := "puzzle-of-player__puzzle")(
-                          views.html.game.bits.miniTag(
+                          views.html.puzzle.bits.miniTag(
                             sfen = puzzle.sfenAfterInitialMove,
                             color = puzzle.color,
                             lastMove = puzzle.lastMove
                           )(
                             a(
-                              cls := s"puzzle-of-player__puzzle__board",
+                              cls  := s"puzzle-of-player__puzzle__board",
                               href := routes.Puzzle.show(puzzle.id.value)
                             )
                           ),
-                          span(cls := "puzzle-of-player__puzzle__meta")(
+                          span(cls   := "puzzle-of-player__puzzle__meta")(
                             span(cls := "puzzle-of-player__puzzle__id", s"#${puzzle.id}"),
                             span(cls := "puzzle-of-player__puzzle__rating", puzzle.glicko.intRating)
                           )

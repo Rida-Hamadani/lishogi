@@ -1,14 +1,11 @@
-import { init } from 'snabbdom';
-import klass from 'snabbdom/modules/class';
-import attributes from 'snabbdom/modules/attributes';
-import { Shogiground } from 'shogiground';
-import { TournamentOpts } from './interfaces';
 import LishogiChat from 'chat';
-
-const patch = init([klass, attributes]);
-
+import { Shogiground } from 'shogiground';
+import { attributesModule, classModule, init } from 'snabbdom';
 import makeCtrl from './ctrl';
+import { TournamentOpts } from './interfaces';
 import view from './view/main';
+
+const patch = init([classModule, attributesModule]);
 
 export function start(opts: TournamentOpts) {
   opts.classes = opts.element.getAttribute('class');

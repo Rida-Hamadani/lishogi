@@ -1,8 +1,8 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import GamebookPlayCtrl, { State } from './gamebookPlayCtrl';
-import { bind, dataIcon, iconTag, richHTML } from '../../util';
+import { bind, dataIcon } from 'common/snabbdom';
 import { toBlackWhite } from 'shogiops/util';
+import { VNode, h } from 'snabbdom';
+import { iconTag, richHTML } from '../../util';
+import GamebookPlayCtrl, { State } from './gamebookPlayCtrl';
 
 const defaultComments = {
   play: 'What would you play in this position?',

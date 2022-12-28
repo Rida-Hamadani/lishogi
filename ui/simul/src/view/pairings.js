@@ -28,11 +28,12 @@ function miniPairing(ctrl) {
             'data-color': game.orient,
             'data-sfen': game.sfen,
             'data-lastmove': game.lastMove,
+            'data-variant': game.variant,
             config: function (el, isUpdate) {
               if (!isUpdate) lishogi.parseSfen($(el));
             },
           },
-          m('div.cg-wrap')
+          m('div.sg-wrap')
         ),
         m('span.vstext', [
           m('span.vstext__pl', [util.playerVariant(ctrl, player).name, m('br'), result]),

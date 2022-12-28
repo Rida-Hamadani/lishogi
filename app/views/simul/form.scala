@@ -31,7 +31,6 @@ object form {
           p(trans.whenCreateSimul()),
           br,
           br,
-          globalError(form),
           formContent(form, teams),
           form3.actions(
             a(href := routes.Simul.home)(trans.cancel()),
@@ -98,7 +97,7 @@ object form {
         form3.group(
           form("clockTime"),
           trans.clockInitialTime(),
-          //help = trans.simulClockHint().some,
+          // help = trans.simulClockHint().some,
           half = true
         )(form3.select(_, clockTimeChoices)),
         form3.group(
@@ -143,7 +142,11 @@ object form {
           trans.startPosition(),
           klass = "position",
           half = true,
-          help = views.html.tournament.form.positionInputHelp.some
+          help = frag(
+            views.html.tournament.form.positionInputHelp,
+            br,
+            "Works only with one variant selected."
+          ).some
         )(form3.input(_))
       ),
       form3.group(

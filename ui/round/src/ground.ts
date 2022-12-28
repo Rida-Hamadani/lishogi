@@ -1,56 +1,96 @@
-import { h } from 'snabbdom';
-import { Shogiground } from 'shogiground';
-import * as cg from 'shogiground/types';
-import { Api as CgApi } from 'shogiground/api';
-import { Config } from 'shogiground/config';
-import changeColorHandle from 'common/coordsColor';
+import { notationFiles, notationRanks } from 'common/notation';
+import { predrop, premove } from 'common/pre-sg';
 import resizeHandle from 'common/resize';
-import * as util from './util';
-import { plyStep } from './round';
+import { Config } from 'shogiground/config';
+import { checksSquareNames, usiToSquareNames } from 'shogiops/compat';
+import { forsythToRole, parseSfen, roleToForsyth } from 'shogiops/sfen';
+import { Piece, Role } from 'shogiops/types';
+import { makeSquare, parseSquare } from 'shogiops/util';
+import { handRoles, pieceCanPromote, pieceForcePromote, promote } from 'shogiops/variant/util';
+import { h } from 'snabbdom';
 import RoundController from './ctrl';
 import { RoundData } from './interfaces';
-import { promote as shogiopsPromote } from 'shogiops/variantUtil';
-import { lishogiVariantRules } from 'shogiops/compat';
+import { plyStep } from './round';
+import * as util from './util';
 
 export function makeConfig(ctrl: RoundController): Config {
   const data = ctrl.data,
-    hooks = ctrl.makeCgHooks(),
+    variant = data.game.variant.key,
+    hooks = ctrl.makeSgHooks(),
     step = plyStep(data, ctrl.ply),
-    playing = ctrl.isPlaying();
+    playing = ctrl.isPlaying(),
+    posRes = playing || (step.check && variant === 'chushogi') ? parseSfen(variant, step.sfen, false) : undefined,
+    splitSfen = step.sfen.split(' ');
   return {
-    sfen: step.sfen,
+    sfen: { board: splitSfen[0], hands: splitSfen[2] },
     orientation: boardOrientation(data, ctrl.flip),
     turnColor: step.ply % 2 === 0 ? 'sente' : 'gote',
-    lastMove: util.usi2move(step.usi),
-    check: !!step.check,
-    coordinates: data.pref.coords !== 0,
+    activeColor: playing ? data.player.color : undefined,
+    lastDests: step.usi ? usiToSquareNames(step.usi) : undefined,
+    checks: variant === 'chushogi' && posRes?.isOk ? checksSquareNames(posRes.value) : step.check,
+    coordinates: {
+      enabled: data.pref.coords !== 0,
+      files: notationFiles(data.pref.notation),
+      ranks: notationRanks(data.pref.notation),
+    },
     highlight: {
-      lastMove: data.pref.highlight,
-      check: data.pref.highlight,
+      lastDests: data.pref.highlightLastDests,
+      check: data.pref.highlightCheck,
     },
     events: {
       move: hooks.onMove,
-      dropNewPiece: hooks.onNewPiece,
-      insert(elements) {
-        resizeHandle(elements, ctrl.data.pref.resizeHandle, ctrl.ply);
-        if (data.pref.coords == 1) changeColorHandle();
-      },
-      select: () => {
-        if (ctrl.dropmodeActive && !ctrl.shogiground?.state.dropmode.active) {
-          ctrl.dropmodeActive = false;
-          ctrl.redraw();
+      drop: hooks.onDrop,
+      unselect: (key: Key) => {
+        if (ctrl.lionFirstMove && ctrl.lionFirstMove.to === parseSquare(key)) {
+          const from = ctrl.lionFirstMove.from,
+            to = ctrl.lionFirstMove.to;
+          hooks.onUserMove(makeSquare(from), makeSquare(to), false, { premade: false });
         }
       },
+      insert(elements) {
+        if (elements) resizeHandle(elements, data.pref.resizeHandle, ctrl.ply);
+      },
+    },
+    hands: {
+      roles: handRoles(variant),
     },
     movable: {
       free: false,
-      color: playing ? data.player.color : undefined,
-      dests: playing ? util.getMoveDests(step.sfen, data.game.variant.key) : new Map(),
+      dests: playing && posRes ? util.getMoveDests(posRes) : new Map(),
       showDests: data.pref.destination,
       events: {
         after: hooks.onUserMove,
-        afterNewPiece: hooks.onUserNewPiece,
       },
+    },
+    droppable: {
+      free: false,
+      dests: playing && posRes ? util.getDropDests(posRes) : new Map(),
+      showDests: data.pref.destination && data.pref.dropDestination,
+      events: {
+        after: hooks.onUserDrop,
+      },
+    },
+    promotion: {
+      promotesTo: (role: Role) => {
+        return promote(variant)(role);
+      },
+      movePromotionDialog: (orig: Key, dest: Key) => {
+        const piece = ctrl.shogiground.state.pieces.get(orig) as Piece,
+          capture = ctrl.shogiground.state.pieces.get(dest) as Piece | undefined;
+        return (
+          !!piece &&
+          pieceCanPromote(variant)(piece, parseSquare(orig)!, parseSquare(dest)!, capture) &&
+          !pieceForcePromote(variant)(piece, parseSquare(dest)!)
+        );
+      },
+      forceMovePromotion: (orig: Key, dest: Key) => {
+        const piece = ctrl.shogiground.state.pieces.get(orig) as Piece;
+        return !!piece && pieceForcePromote(variant)(piece, parseSquare(dest)!);
+      },
+    },
+    forsyth: {
+      fromForsyth: forsythToRole(variant),
+      toForsyth: roleToForsyth(variant),
     },
     animation: {
       enabled: true,
@@ -58,38 +98,26 @@ export function makeConfig(ctrl: RoundController): Config {
     },
     premovable: {
       enabled: data.pref.enablePremove,
+      generate: data.pref.enablePremove ? premove(variant) : undefined,
       showDests: data.pref.destination,
-      events: {
-        set: hooks.onPremove,
-        unset: hooks.onCancelPremove,
-      },
     },
     predroppable: {
       enabled: data.pref.enablePremove,
-      showDropDests: data.pref.destination && data.pref.dropDestination,
-      events: {
-        set: hooks.onPredrop,
-        unset() {
-          hooks.onPredrop(undefined);
-        },
-      },
-    },
-    dropmode: {
-      showDropDests: data.pref.destination && data.pref.dropDestination,
-      dropDests: playing ? util.getDropDests(step.sfen, data.game.variant.key) : new Map(),
+      generate: data.pref.enablePremove ? predrop(variant) : undefined,
+      showDests: data.pref.destination && data.pref.dropDestination,
     },
     draggable: {
       enabled: data.pref.moveEvent > 0,
-      showGhost: data.pref.highlight,
+      showGhost: data.pref.highlightLastDests,
+      showTouchSquareOverlay: data.pref.squareOverlay,
     },
     selectable: {
       enabled: data.pref.moveEvent !== 1,
     },
     drawable: {
       enabled: true,
+      squares: [],
     },
-    disableContextMenu: true,
-    notation: data.pref.pieceNotation,
   };
 }
 
@@ -97,31 +125,32 @@ export function reload(ctrl: RoundController) {
   ctrl.shogiground.set(makeConfig(ctrl));
 }
 
-export function promote(ground: CgApi, key: cg.Key, variant: VariantKey) {
-  const piece = ground.state.pieces.get(key);
-  if (piece && !piece.promoted) {
-    const prole = shogiopsPromote(lishogiVariantRules(variant))(piece.role);
-    ground.setPieces(
-      new Map([
-        [
-          key,
-          {
-            color: piece.color,
-            role: prole,
-            promoted: true,
-          },
-        ],
-      ])
-    );
-  }
-}
-
 export function boardOrientation(data: RoundData, flip: boolean): Color {
   return flip ? data.opponent.color : data.player.color;
 }
 
-export function render(ctrl: RoundController) {
-  return h('div.cg-wrap', {
-    hook: util.onInsert(el => ctrl.setShogiground(Shogiground(el, makeConfig(ctrl)))),
+export function renderBoard(ctrl: RoundController) {
+  return h('div.sg-wrap', {
+    hook: {
+      insert: vnode => {
+        ctrl.shogiground.attach({ board: vnode.elm as HTMLElement });
+        // ctrl.setKeyboardMove();
+      },
+    },
+  });
+}
+
+export function renderHand(ctrl: RoundController, pos: 'top' | 'bottom') {
+  return h(`div.sg-hand-wrap.hand-${pos}`, {
+    hook: {
+      insert: vnode => {
+        ctrl.shogiground.attach({
+          hands: {
+            top: pos === 'top' ? (vnode.elm as HTMLElement) : undefined,
+            bottom: pos === 'bottom' ? (vnode.elm as HTMLElement) : undefined,
+          },
+        });
+      },
+    },
   });
 }

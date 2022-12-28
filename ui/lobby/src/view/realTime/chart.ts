@@ -1,8 +1,8 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
+import { bind } from 'common/snabbdom';
+import { VNode, h } from 'snabbdom';
 import LobbyController from '../../ctrl';
 import { Hook } from '../../interfaces';
-import { bind, perfIcons } from '../util';
+import { perfIcons } from '../util';
 
 function percents(v) {
   return v + '%';

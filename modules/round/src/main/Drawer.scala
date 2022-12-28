@@ -2,7 +2,7 @@ package lila.round
 
 import lila.game.{ Event, Game, Pov, Progress }
 import lila.pref.PrefApi
-import lila.i18n.{ I18nKeys => trans, defaultLang }
+import lila.i18n.{ defaultLang, I18nKeys => trans }
 
 import lila.common.Bus
 
@@ -19,7 +19,7 @@ final private[round] class Drawer(
     pov match {
       case pov if pov.opponent.isOfferingDraw =>
         finisher.other(pov.game, _.Draw, None, Some(trans.drawOfferAccepted.txt()))
-      case Pov(g, color) if g playerCanOfferDraw =>
+      case Pov(g, color) if g playerCanOfferDraw color =>
         proxy.save {
           messenger.system(g, color.fold(trans.blackOffersDraw, trans.whiteOffersDraw).txt())
           Progress(g) map { g =>

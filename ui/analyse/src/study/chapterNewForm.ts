@@ -1,15 +1,17 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import { defined, prop, Prop } from 'common';
-import { storedProp, StoredProp } from 'common/storage';
-import { bind, bindSubmit, spinner, option, onInsert } from '../util';
-import { variants as xhrVariants, importNotation } from './studyXhr';
-import * as modal from '../modal';
-import { chapter as chapterTour } from './studyTour';
-import { StudyChapterMeta } from './interfaces';
-import { Redraw } from '../interfaces';
-import AnalyseCtrl from '../ctrl';
+import { Prop, defined, prop } from 'common/common';
+import { bind, bindSubmit, onInsert } from 'common/snabbdom';
+import spinner from 'common/spinner';
+import { StoredProp, storedProp } from 'common/storage';
+import * as xhr from 'common/xhr';
 import { toBlackWhite } from 'shogiops/util';
+import { VNode, h } from 'snabbdom';
+import AnalyseCtrl from '../ctrl';
+import { Redraw } from '../interfaces';
+import * as modal from '../modal';
+import { option } from '../util';
+import { StudyChapterMeta } from './interfaces';
+import { chapter as chapterTour } from './studyTour';
+import { importNotation, variants as xhrVariants } from './studyXhr';
 
 export const modeChoices = [
   ['normal', 'normalAnalysis'],
@@ -199,18 +201,20 @@ export function view(ctrl: StudyChapterNewFormCtrl): VNode {
                 'div.board-editor-wrap',
                 {
                   hook: {
-                    insert: vnode => {
-                      $.when(
+                    insert(vnode) {
+                      Promise.all([
                         window.lishogi.loadScript(
                           'compiled/lishogi.editor' + ($('body').data('dev') ? '' : '.min') + '.js'
                         ),
-                        $.get('/editor.json', {
-                          sfen: ctrl.root.node.sfen,
-                        })
-                      ).then(function (_, b) {
-                        const data = b[0];
+                        xhr.json(
+                          xhr.url('/editor.json', {
+                            sfen: ctrl.root.node.sfen,
+                          })
+                        ),
+                      ]).then(([_, data]) => {
                         data.embed = true;
                         data.options = {
+                          orientation: currentChapter.setup.orientation,
                           onChange: ctrl.vm.editorSfen,
                         };
                         ctrl.vm.editor = window['LishogiEditor'](vnode.elm as HTMLElement, data);

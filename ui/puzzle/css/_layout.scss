@@ -6,14 +6,14 @@
   }
 }
 
-$pocket-col1-height: auto;
+$hand-col1-height: auto;
 
-.pocket {
+.hand {
   &-top {
-    grid-area: pocket-top;
+    grid-area: hand-top;
   }
   &-bottom {
-    grid-area: pocket-bot;
+    grid-area: hand-bot;
   }
 }
 
@@ -50,9 +50,9 @@ $pocket-col1-height: auto;
   }
 
   grid-template-areas:
-    'pocket-top'
+    'hand-top'
     'board'
-    'pocket-bot'
+    'hand-bot'
     'controls'
     'tools'
     'session'
@@ -63,14 +63,26 @@ $pocket-col1-height: auto;
   }
 
   @include breakpoint($mq-col2) {
-    grid-template-columns: $col2-uniboard-width var(--gauge-gap) $col2-uniboard-table;
-    grid-template-rows: $square-max-taller fit-content(0) $square-max-taller;
+    grid-template-columns: $col2-uniboard-width $gauge-gap $col2-uniboard-table;
+    grid-template-rows: min-content 1fr min-content auto 1fr;
     grid-template-areas:
-      'board   gauge pocket-top'
+      'board   gauge hand-top'
       'board   gauge tools'
-      'board   gauge pocket-bot'
+      'board   gauge hand-bot'
       'session .     controls'
       'side    side  side';
+
+    .board-layout-1 & {
+      grid-template-rows: fit-content(0);
+      grid-template-columns: $square-9 $hand-gap $col2-uniboard-width $hand-gap $square-9 $gauge-gap $col3-uniboard-table-no-hands;
+      grid-template-areas:
+        'hand-top . board   . hand-bot gauge tools'
+        '.        . session . .        .     controls'
+        '.        . side    side side   side  side';
+      @include breakpoint($mq-col2-uniboard-squeeze-1) {
+        grid-template-columns: $square-9-squeeze $hand-gap $board-squeeze $hand-gap $square-9-squeeze $gauge-gap $col3-uniboard-table-no-hands-squeeze;
+      }
+    }
 
     &__moves {
       display: block;
@@ -79,14 +91,25 @@ $pocket-col1-height: auto;
 
   @include breakpoint($mq-col3) {
     grid-template-areas:
-      'side    . board   gauge pocket-top'
+      'side    . board   gauge hand-top'
       'side    . board   gauge tools'
-      'side    . board   gauge pocket-bot'
+      'side    . board   gauge hand-bot'
       'side    . session .     controls'
       'side    . .       .     .';
     grid-template-columns:
-      $col3-uniboard-side $block-gap $col3-uniboard-width var(--gauge-gap)
+      $col3-uniboard-side $block-gap $col3-uniboard-width $gauge-gap
       $col3-uniboard-table;
+
+    .board-layout-1 & {
+      grid-template-rows: fit-content(0);
+      grid-template-columns:
+        $col3-uniboard-side $block-gap $square-9 $hand-gap $col3-uniboard-width $hand-gap $square-9 $gauge-gap
+        $col3-uniboard-table-no-hands;
+      grid-template-areas:
+        'side . hand-top  . board   . hand-bot gauge tools'
+        'side . .         . session . .        .     controls'
+        'side . .         . .       . .        .     .';
+    }
   }
 
   &__side {
@@ -101,7 +124,7 @@ $pocket-col1-height: auto;
     @include breakpoint($mq-xx-small) {
       grid-template-columns: 1fr 1fr;
       grid-template-areas: 'metas user' 'metas theme' 'config theme' '. theme';
-      grid-template-rows: min-content min-content min-content;
+      grid-template-rows: min-content min-content min-content min-content;
 
       .puzzle-replay & {
         grid-template-areas: 'metas replay' 'metas user' 'config user';
@@ -109,12 +132,10 @@ $pocket-col1-height: auto;
     }
 
     @include breakpoint($mq-x-large) {
-      grid-template-columns: 1fr;
+      grid-template-columns: $col3-uniboard-side;
       grid-template-areas: 'metas' 'user' 'theme' 'config';
       grid-template-rows: min-content min-content min-content;
       justify-self: end;
-      min-width: 250px;
-      max-width: 350px;
 
       .puzzle-replay & {
         grid-template-areas: 'metas' 'replay' 'user' 'config';
@@ -144,7 +165,7 @@ $pocket-col1-height: auto;
 }
 
 @include breakpoint($mq-col1-uniboard) {
-  .pocket {
+  .hand {
     &-top {
       margin-bottom: #{$block-gap};
     }

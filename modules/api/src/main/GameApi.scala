@@ -1,12 +1,11 @@
 package lila.api
 
-import shogi.format.forsyth.Sfen
 import org.joda.time.DateTime
 import play.api.libs.json._
 import reactivemongo.api.bson._
 import reactivemongo.api.ReadPreference
 
-import lila.analyse.{ JsonView => analysisJson, Analysis }
+import lila.analyse.{ Analysis, JsonView => analysisJson }
 import lila.common.config._
 import lila.common.Json.jodaWrites
 import lila.common.paginator.{ Paginator, PaginatorJson }

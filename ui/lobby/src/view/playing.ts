@@ -1,5 +1,8 @@
-import { h } from 'snabbdom';
 import { Shogiground } from 'shogiground';
+import { usiToSquareNames } from 'shogiops/compat';
+import { forsythToRole } from 'shogiops/sfen';
+import { handRoles } from 'shogiops/variant/util';
+import { h } from 'snabbdom';
 import LobbyController from '../ctrl';
 
 function timer(pov) {
@@ -18,6 +21,7 @@ function timer(pov) {
 }
 
 export default function (ctrl: LobbyController) {
+  if (ctrl.data.nowPlaying.some(pov => pov.variant.key === 'chushogi')) window.lishogi.loadChushogiPieceSprite();
   return h(
     'div.now-playing',
     ctrl.data.nowPlaying.map(function (pov) {
@@ -28,21 +32,34 @@ export default function (ctrl: LobbyController) {
           attrs: { href: '/' + pov.fullId },
         },
         [
-          h('div.mini-board.cg-wrap', {
+          h('div.mini-board.sg-wrap', {
             hook: {
               insert(vnode) {
-                const lm = pov.lastMove;
-                Shogiground(vnode.elm as HTMLElement, {
-                  coordinates: false,
-                  drawable: { enabled: false, visible: false },
-                  resizable: false,
-                  viewOnly: true,
-                  orientation: pov.color,
-                  sfen: pov.sfen,
-                  hasPockets: true,
-                  pockets: pov.sfen && pov.sfen.split(' ').length > 2 ? pov.sfen.split(' ')[2] : '',
-                  lastMove: lm ? (lm.includes('*') ? [lm.slice(2)] : [lm[0] + lm[1], lm[2] + lm[3]]) : undefined,
-                });
+                const lm = pov.lastMove,
+                  variant = pov.variant.key,
+                  splitSfen = pov.sfen.split(' ');
+                Shogiground(
+                  {
+                    coordinates: { enabled: false },
+                    drawable: { enabled: false, visible: false },
+                    viewOnly: true,
+                    orientation: pov.color,
+                    disableContextMenu: false,
+                    sfen: {
+                      board: splitSfen[0],
+                      hands: splitSfen[2],
+                    },
+                    hands: {
+                      inlined: true,
+                      roles: handRoles(variant),
+                    },
+                    lastDests: lm ? usiToSquareNames(lm) : undefined,
+                    forsyth: {
+                      fromForsyth: forsythToRole(variant),
+                    },
+                  },
+                  { board: vnode.elm as HTMLElement }
+                );
               },
             },
           }),
@@ -55,7 +72,7 @@ export default function (ctrl: LobbyController) {
                   ? timer(pov)
                   : [ctrl.trans.noarg('yourTurn')]
                 : h('span', '\xa0')
-            ), // &nbsp;
+            ),
           ]),
         ]
       );

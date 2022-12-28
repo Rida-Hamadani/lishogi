@@ -12,12 +12,8 @@ private object BSONHandlers {
   implicit val ClientPythonBSONHandler  = stringAnyValHandler[Client.Python](_.value, Client.Python.apply)
   implicit val ClientUserIdBSONHandler  = stringAnyValHandler[Client.UserId](_.value, Client.UserId.apply)
 
-  implicit val ClientSkillBSONHandler = tryHandler[Client.Skill](
-    { case BSONString(v) => Client.Skill byKey v toTry s"Invalid client skill $v" },
-    x => BSONString(x.key)
-  )
-  implicit val ClientEvaluationBSONHandler = tryHandler[Client.Evaluation](
-    { case BSONString(v) => Client.Evaluation byKey v toTry s"Invalid client evaluation $v" },
+  implicit val ClientSkillBSONHandler = quickHandler[Client.Skill](
+    { case BSONString(v) => Client.Skill.byKey(v).getOrElse(Client.Skill.Analysis) },
     x => BSONString(x.key)
   )
 
@@ -30,8 +26,8 @@ private object BSONHandlers {
 
   implicit val ClientBSONHandler = Macros.handler[Client]
 
-  implicit val VariantBSONHandler = tryHandler[Variant](
-    { case BSONInteger(v) => Variant(v) toTry s"Invalid variant $v" },
+  implicit val VariantBSONHandler = quickHandler[Variant](
+    { case BSONInteger(v) => Variant.orDefault(v) },
     x => BSONInteger(x.id)
   )
 

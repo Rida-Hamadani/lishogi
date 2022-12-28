@@ -20,27 +20,37 @@ private object bits {
         ("", trans.selectHandicap.txt(), None),
         (shogi.StartingPosition.initial.sfen.value, "平手 - Even", Some("default"))
       ) ++
-        shogi.StartingPosition.categories(0).positions.map { v =>
+        shogi.StartingPosition.handicaps.positions.map { v =>
           (v.sfen.value, v.fullName, None)
         }
-    val url = form("sfen").value.fold(routes.Editor.index)(routes.Editor.load).url
+    val positionChoices: List[SelectChoice] =
+      List(
+        ("default", trans.default.txt(), None),
+        ("fromPosition", trans.fromPosition.txt(), None)
+      )
+    val variant = form("variant").value.flatMap(shogi.variant.Variant(_)) | shogi.variant.Standard
+    val url = form("sfen").value
+      .fold(routes.Editor.index)(sfen => routes.Editor.parseArg(s"${variant.key}/$sfen"))
+      .url
     div(cls := "sfen_position optional_config")(
-      frag(
+      renderRadios(form("position"), positionChoices),
+      div(cls := "sfen_position_wrap")(
         div(cls := "handicap label_select")(
           renderLabel(form("handicap"), trans.handicap.txt()),
           renderSelect(form("handicap"), handicapChoices, (a, _) => a == "default"),
           a(
-            cls := "button button-empty",
+            cls      := "button button-empty",
             dataIcon := "",
-            title := trans.handicap.txt(),
-            target := "_blank",
-            href := "https://en.wikipedia.org/wiki/Handicap_(shogi)"
+            title    := trans.handicap.txt(),
+            target   := "_blank",
+            href     := "https://en.wikipedia.org/wiki/Handicap_(shogi)"
           )
         ),
         div(
-          cls := "sfen_form",
+          cls             := "sfen_form",
           dataValidateUrl := s"""${routes.Setup.validateSfen}${strict.??("?strict=1")}"""
         )(
+          renderLabel(form("sfen"), "SFEN"),
           form3.input(form("sfen"))(st.placeholder := trans.pasteTheSfenStringHere.txt()),
           a(cls := "button button-empty", dataIcon := "m", title := trans.boardEditor.txt(), href := url)
         ),
@@ -48,11 +58,12 @@ private object bits {
           span(cls := "preview")(
             validSfen.map { vf =>
               div(
-                cls := "mini-board cg-wrap parse-sfen",
-                dataColor := vf.color.name,
-                dataSfen := vf.sfen.value,
+                cls           := "mini-board sg-wrap parse-sfen",
+                dataColor     := vf.color.name,
+                dataSfen      := vf.sfen.value,
+                dataVariant   := vf.situation.variant.key,
                 dataResizable := "1"
-              )(cgWrapContent)
+              )(sgWrapContent)
             }
           )
         )
@@ -91,14 +102,14 @@ private object bits {
       options.map { case (key, name, hint) =>
         div(
           input(
-            `type` := "radio",
-            id := s"$prefix${field.id}_${key}",
+            `type`  := "radio",
+            id      := s"$prefix${field.id}_${key}",
             st.name := field.name,
-            value := key,
+            value   := key,
             field.value.has(key) option checked
           ),
           label(
-            cls := "required",
+            cls   := "required",
             title := hint,
             `for` := s"$prefix${field.id}_$key"
           )(name)
@@ -150,14 +161,12 @@ private object bits {
             span(form("byoyomi").value),
             renderInput(form("byoyomi"))
           ),
-          raw("""<a class="advanced_toggle"></a>"""),
-          div(cls := "advanced_setup hidden")(
-            frag(
-              div(cls := "periods buttons")(
-                trans.periods(),
-                div(id := "config_periods")(
-                  renderRadios(form("periods"), periodsChoices)
-                )
+          a(cls := "advanced_toggle"),
+          div(cls := "advanced_setup")(
+            div(cls := "periods buttons")(
+              trans.periods(),
+              div(id := "config_periods")(
+                renderRadios(form("periods"), periodsChoices)
               )
             ),
             div(cls := "increment_choice slider")(

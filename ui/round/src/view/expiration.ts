@@ -1,7 +1,7 @@
+import { MaybeVNode } from 'common/snabbdom';
+import { isPlayerTurn, playable } from 'game';
 import { h } from 'snabbdom';
-import { MaybeVNode } from '../interfaces';
 import RoundController from '../ctrl';
-import { playable, isPlayerTurn } from 'game';
 
 let rang = false;
 

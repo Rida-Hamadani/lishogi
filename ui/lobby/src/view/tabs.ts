@@ -1,7 +1,7 @@
+import { MaybeVNodes, bind } from 'common/snabbdom';
 import { h } from 'snabbdom';
-import { bind } from './util';
 import LobbyController from '../ctrl';
-import { MaybeVNodes, Tab } from '../interfaces';
+import { Tab } from '../interfaces';
 
 function tab(ctrl: LobbyController, key: Tab, active: Tab, content: MaybeVNodes) {
   return h(

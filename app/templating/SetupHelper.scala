@@ -86,7 +86,7 @@ trait SetupHelper { self: I18nHelper =>
     List(
       (TimeMode.RealTime.id.toString, trans.realTime.txt(), none),
       (TimeMode.Correspondence.id.toString, trans.correspondence.txt(), none)
-      //(TimeMode.Unlimited.id.toString, trans.unlimited.txt(), none)
+      // (TimeMode.Unlimited.id.toString, trans.unlimited.txt(), none)
     )
   }
 
@@ -138,14 +138,16 @@ trait SetupHelper { self: I18nHelper =>
   def translatedVariantChoices(implicit lang: Lang): List[SelectChoice] =
     standardChoice ::
       List(
-        shogi.variant.Minishogi
+        shogi.variant.Minishogi,
+        shogi.variant.Chushogi
       ).map(variantTupleId)
 
   def translatedVariantChoices(
       encode: Variant => String
   )(implicit lang: Lang): List[SelectChoice] =
     standardChoice(encode) :: List(
-      shogi.variant.Minishogi
+      shogi.variant.Minishogi,
+      shogi.variant.Chushogi
     ).map(variantTuple(encode))
 
   def translatedAiChoices(implicit lang: Lang) =
@@ -170,6 +172,12 @@ trait SetupHelper { self: I18nHelper =>
       ("gote", trans.white.txt(), none)
     )
 
+  def translatedBoardLayoutChoices(implicit lang: Lang) =
+    List(
+      (Pref.BoardLayout.SIDE, trans.side.txt()),
+      (Pref.BoardLayout.COMPACT, trans.compact.txt())
+    )
+
   def translatedAnimationChoices(implicit lang: Lang) =
     List(
       (Pref.Animation.NONE, trans.none.txt()),
@@ -182,7 +190,8 @@ trait SetupHelper { self: I18nHelper =>
     List(
       (Pref.Coords.NONE, trans.no.txt()),
       (Pref.Coords.INSIDE, trans.insideTheBoard.txt()),
-      (Pref.Coords.OUTSIDE, trans.outsideTheBoard.txt())
+      (Pref.Coords.OUTSIDE, trans.outsideTheBoard.txt()),
+      (Pref.Coords.EDGE, trans.edgeOfTheBoard.txt())
     )
 
   def translatedMoveListWhilePlayingChoices(implicit lang: Lang) =
@@ -190,14 +199,6 @@ trait SetupHelper { self: I18nHelper =>
       (Pref.Replay.NEVER, trans.never.txt()),
       (Pref.Replay.SLOW, trans.onSlowGames.txt()),
       (Pref.Replay.ALWAYS, trans.always.txt())
-    )
-
-  def translatedPieceNotationChoices(implicit lang: Lang) =
-    List(
-      (Pref.PieceNotation.WESTERN, "Western notation"),
-      (Pref.PieceNotation.WESTERN2, "Western2 notation"),
-      (Pref.PieceNotation.JAPANESE, "Japanese notation"),
-      (Pref.PieceNotation.KAWASAKI, "Kawasaki notation")
     )
 
   def translatedClockTenthsChoices(implicit lang: Lang) =

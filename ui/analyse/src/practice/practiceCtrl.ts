@@ -1,10 +1,10 @@
-import { winningChances, Eval } from 'ceval';
+import { Eval, winningChances } from 'ceval';
+import { Prop, prop } from 'common/common';
 import { path as treePath } from 'tree';
-import { detectFourfold } from '../nodeFinder';
 //import { tablebaseGuaranteed } from '../explorer/explorerCtrl';
 import AnalyseCtrl from '../ctrl';
 import { Redraw } from '../interfaces';
-import { pretendItsUsi, prop, Prop } from 'common';
+import { detectFourfold } from '../nodeFinder';
 
 declare type Verdict = 'goodMove' | 'inaccuracy' | 'mistake' | 'blunder';
 
@@ -62,7 +62,7 @@ export function make(root: AnalyseCtrl, playableDepth: () => number): PracticeCt
   function commentable(node: Tree.Node, bonus: number = 0): boolean {
     if (node.tbhit || root.outcome(node)) return true;
     const ceval = node.ceval;
-    return ceval ? ceval.depth + bonus >= 15 || (ceval.depth >= 13 && ceval.millis > 3000) : false;
+    return ceval ? ceval.depth + bonus >= 15 || (ceval.depth >= 13 && !ceval.cloud && ceval.millis > 3000) : false;
   }
 
   function playable(node: Tree.Node): boolean {
@@ -85,7 +85,7 @@ export function make(root: AnalyseCtrl, playableDepth: () => number): PracticeCt
   }
   function nodeBestUsi(node: Tree.Node): Usi | undefined {
     const usi = (node.tbhit && node.tbhit.best) || (node.ceval && node.ceval.pvs[0].moves[0]);
-    return usi && pretendItsUsi(usi);
+    return usi;
   }
 
   function makeComment(prev: Tree.Node, node: Tree.Node, path: Tree.Path): Comment {
@@ -233,7 +233,7 @@ export function make(root: AnalyseCtrl, playableDepth: () => number): PracticeCt
       root.setAutoShapes();
     },
     hint() {
-      const best = root.node.ceval ? pretendItsUsi(root.node.ceval.pvs[0].moves[0]) : null,
+      const best = root.node.ceval ? root.node.ceval.pvs[0].moves[0] : null,
         prev = hinting();
       if (!best || (prev && prev.mode === 'move')) hinting(null);
       else

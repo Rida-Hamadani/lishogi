@@ -57,15 +57,17 @@ sealed trait Context extends lila.user.UserContextWrapper {
 
   def currentTheme = lila.pref.Theme(pref.theme)
 
-  def currentThemeTall = lila.pref.ThemeTall(pref.themeTall)
-
   def currentPieceSet = lila.pref.PieceSet(pref.pieceSet)
+
+  def currentChuPieceSet = lila.pref.ChuPieceSet(pref.chuPieceSet)
 
   def currentSoundSet = lila.pref.SoundSet(pref.soundSet)
 
   lazy val currentBg = if (pref.transp) "transp" else if (pref.dark) "dark" else "light"
 
   def transpBgImg = currentBg == "transp" option pref.bgImgOrDefault
+
+  def activeCustomTheme = (currentTheme.name == "custom") ?? pref.customTheme
 
   lazy val mobileApiVersion = Mobile.Api requestVersion req
 

@@ -1,10 +1,9 @@
 package lila.api
 
-import shogi.format.forsyth.Sfen
 import play.api.i18n.Lang
 import play.api.libs.json._
 
-import lila.analyse.{ JsonView => analysisJson, Analysis }
+import lila.analyse.{ Analysis, JsonView => analysisJson }
 import lila.common.ApiVersion
 import lila.game.{ Game, Pov }
 import lila.pref.Pref
@@ -177,15 +176,7 @@ final private[api] class RoundApi(
       obj: JsObject
   ) =
     obj + ("treeParts" -> partitionTreeJsonWriter.writes(
-      lila.round.TreeBuilder(
-        id = pov.gameId,
-        usiMoves = pov.game.usiMoves,
-        variant = pov.game.variant,
-        analysis = analysis,
-        initialSfen = pov.game.initialSfen | pov.game.variant.initialSfen,
-        withFlags = withFlags,
-        clocks = withFlags.clocks ?? pov.game.bothClockStates
-      )
+      lila.round.TreeBuilder(pov.game, analysis, withFlags)
     ))
 
   private def withSteps(pov: Pov)(obj: JsObject) =

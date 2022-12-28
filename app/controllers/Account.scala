@@ -6,7 +6,7 @@ import scala.annotation.nowarn
 
 import lila.api.Context
 import lila.app._
-import lila.user.{ User => UserModel, TotpSecret }
+import lila.user.{ TotpSecret, User => UserModel }
 import views.html
 
 final class Account(
@@ -31,7 +31,7 @@ final class Account(
         fuccess(html.account.profile(me, err))
       } { profile =>
         env.user.repo.setProfile(me.id, profile) inject
-          Redirect(routes.Account.profile).flashSuccess
+          Redirect(routes.User show me.username).flashSuccess
       }
     }
 
@@ -100,23 +100,6 @@ final class Account(
     env.round.proxyRepo.urgentGames(me) map { povs =>
       val nb = (getInt("nb", req) | 9) atMost 50
       Ok(Json.obj("nowPlaying" -> JsArray(povs take nb map env.api.lobbyApi.nowPlaying)))
-    }
-
-  def dasher =
-    Auth { implicit ctx => me =>
-      negotiate(
-        html = notFound,
-        api = _ =>
-          env.pref.api.getPref(me) map { prefs =>
-            Ok {
-              import lila.pref.JsonView._
-              lila.common.LightUser.lightUserWrites.writes(me.light) ++ Json.obj(
-                "coach" -> isGranted(_.Coach),
-                "prefs" -> prefs
-              )
-            }
-          }
-      )
     }
 
   def passwd =

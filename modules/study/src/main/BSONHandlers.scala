@@ -1,10 +1,10 @@
 package lila.study
 
 import shogi.format.{ Glyph, Glyphs, Tag, Tags }
-import shogi.format.usi.{ Usi, UsiCharPair }
-import shogi.format.forsyth.Sfen
-import shogi.variant.Variant
-import shogi.{ Centis, Piece, Pos, Role }
+import shogi.format.usi.{ UciToUsi, Usi, UsiCharPair }
+import shogi.format.forsyth.{ Sfen, SfenUtils }
+import shogi.variant.{ Standard, Variant }
+import shogi.{ Centis, Piece, Pos }
 import org.joda.time.DateTime
 import reactivemongo.api.bson._
 import scala.util.Success
@@ -32,40 +32,45 @@ object BSONHandlers {
 
   implicit private val PosBSONHandler = tryHandler[Pos](
     { case BSONString(v) => Pos.fromKey(v) toTry s"No such pos: $v" },
-    x => BSONString(x.usiKey)
+    x => BSONString(x.key)
   )
   implicit private val PieceBSONHandler = tryHandler[Piece](
-    { case BSONString(v) => Piece.fromForsyth(v) toTry s"No such piece: $v" },
-    x => BSONString(x.forsyth)
+    { case BSONString(v) => SfenUtils.toPiece(v, Standard) toTry s"No such piece: $v" },
+    x => BSONString(SfenUtils.toForsyth(x, Standard).getOrElse("p"))
+  )
+
+  implicit private val PosOrPieceBSONHandler = tryHandler[Shape.PosOrPiece](
+    { case BSONString(v) =>
+      Pos
+        .fromKey(v)
+        .map(Left(_).withRight[Piece])
+        .orElse(SfenUtils.toPiece(v, Standard).map(Right(_).withLeft[Pos])) toTry s"No such pos or piece: $v"
+    },
+    x => BSONString(x.fold(_.key, p => SfenUtils.toForsyth(p, Standard).getOrElse("p")))
   )
 
   implicit val ShapeBSONHandler = new BSON[Shape] {
     def reads(r: Reader) = {
       val brush = r str "b"
-      r.getO[Pos]("p") map { pos =>
-        Shape.Circle(brush, pos)
+      r.getO[Shape.PosOrPiece]("p") map { pos =>
+        Shape.Circle(brush, pos, None)
       } getOrElse {
-        r.getO[Piece]("k") map { piece =>
-          Shape.Piece(brush, r.get[Pos]("o"), piece)
-        } getOrElse Shape.Arrow(brush, r.get[Pos]("o"), r.get[Pos]("d"))
+        r.getO[Shape.PosOrPiece]("d") map { dest =>
+          Shape.Arrow(brush, r.get[Shape.PosOrPiece]("o"), dest)
+        } getOrElse Shape.Circle(brush, r.get[Shape.PosOrPiece]("o"), r.getO[Piece]("k"))
       }
     }
     def writes(w: Writer, t: Shape) =
       t match {
-        case Shape.Circle(brush, pos)       => $doc("b" -> brush, "p" -> pos.usiKey)
-        case Shape.Arrow(brush, orig, dest) => $doc("b" -> brush, "o" -> orig.usiKey, "d" -> dest.usiKey)
-        case Shape.Piece(brush, orig, piece) =>
-          $doc("b" -> brush, "o" -> orig.usiKey, "k" -> piece.forsyth)
+        case Shape.Circle(brush, pop, None) => $doc("b" -> brush, "p" -> pop)
+        case Shape.Circle(brush, pop, Some(piece)) =>
+          $doc("b" -> brush, "o" -> pop, "k" -> SfenUtils.toForsyth(piece, Standard).getOrElse("P"))
+        case Shape.Arrow(brush, origPop, destPop) => $doc("b" -> brush, "o" -> origPop, "d" -> destPop)
       }
   }
 
-  implicit val RoleHandler = tryHandler[Role](
-    { case BSONString(v) => Role.allByForsyth get v toTry s"No such role: $v" },
-    x => BSONString(x.forsyth)
-  )
-
   implicit val UsiHandler = tryHandler[Usi](
-    { case BSONString(v) => Usi(v) toTry s"Bad USI: $v" },
+    { case BSONString(v) => Usi(v).orElse(UciToUsi(v)) toTry s"Bad USI: $v" },
     x => BSONString(x.usi)
   )
 
@@ -231,8 +236,8 @@ object BSONHandlers {
   }
 
   implicit val PathBSONHandler = BSONStringHandler.as[Path](Path.apply, _.toString)
-  implicit val VariantBSONHandler = tryHandler[Variant](
-    { case BSONInteger(v) => Variant(v) toTry s"No such variant: $v" },
+  implicit val VariantBSONHandler = quickHandler[Variant](
+    { case BSONInteger(v) => Variant.orDefault(v) },
     x => BSONInteger(x.id)
   )
 
@@ -245,7 +250,7 @@ object BSONHandlers {
     },
     t => BSONString(s"${t.name}:${t.value}")
   )
-  implicit val tagsHandler                     = implicitly[BSONHandler[List[Tag]]].as[Tags](Tags.apply, _.value)
+  implicit val tagsHandler = implicitly[BSONHandler[List[Tag]]].as[Tags](Tags.apply, _.value)
   implicit private val ChapterSetupBSONHandler = Macros.handler[Chapter.Setup]
   implicit val ChapterRelayBSONHandler         = Macros.handler[Chapter.Relay]
   implicit val ChapterServerEvalBSONHandler    = Macros.handler[Chapter.ServerEval]

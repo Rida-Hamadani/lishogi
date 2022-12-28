@@ -1,6 +1,5 @@
 package lila.study
 
-import shogi.format.forsyth.Sfen
 import lila.game.Game
 import lila.round.JsonView.WithFlags
 
@@ -11,7 +10,6 @@ private object GameToRoot {
       lila.round.TreeBuilder(
         game = game,
         analysis = none,
-        initialSfen = game.initialSfen | game.variant.initialSfen,
         withFlags = WithFlags(clocks = withClocks)
       )
     }

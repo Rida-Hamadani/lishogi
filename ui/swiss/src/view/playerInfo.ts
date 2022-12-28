@@ -1,9 +1,10 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import { spinner, bind, userName, dataIcon, player as renderPlayer, numberRow } from './util';
+import { bind, dataIcon } from 'common/snabbdom';
+import spinner from 'common/spinner';
+import { VNode, h } from 'snabbdom';
+import SwissCtrl from '../ctrl';
 import { Pairing } from '../interfaces';
 import { isOutcome } from '../util';
-import SwissCtrl from '../ctrl';
+import { numberRow, player as renderPlayer, userName } from './util';
 
 export default function (ctrl: SwissCtrl): VNode | undefined {
   if (!ctrl.playerInfoId) return;

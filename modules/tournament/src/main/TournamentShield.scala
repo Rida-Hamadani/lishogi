@@ -122,13 +122,13 @@ object TournamentShield {
 
   object Category {
 
-    //case object UltraBullet
+    // case object UltraBullet
     //    extends Category(
     //      of = Left(Schedule.Speed.UltraBullet),
     //      iconChar = '{'
     //    )
 
-    //case object HyperBullet
+    // case object HyperBullet
     //    extends Category(
     //      of = Left(Schedule.Speed.HyperBullet),
     //      iconChar = 'T'
@@ -170,6 +170,13 @@ object TournamentShield {
           iconChar = ','
         )
 
+    // Later - after ironing out all the details
+    // case object Chushogi
+    //    extends Category(
+    //      of = Right(shogi.variant.Chushogi),
+    //      iconChar = '('
+    //    )
+
     val all: List[Category] = List(
       Bullet,
       SuperBlitz,
@@ -177,8 +184,8 @@ object TournamentShield {
       Rapid,
       Classical,
       Minishogi
-      //HyperBullet,
-      //UltraBullet
+      // HyperBullet,
+      // UltraBullet
     )
 
     def of(t: Tournament): Option[Category] = all.find(_ matches t)

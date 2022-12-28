@@ -1,8 +1,6 @@
 package lila.round
 
-import shogi.format.forsyth.Sfen
-import shogi.variant._
-import shogi.{ Game => ShogiGame, Board, Color => ShogiColor, Clock, Situation, Hands }
+import shogi.{ Clock, Color => ShogiColor, Game => ShogiGame }
 import ShogiColor.{ Gote, Sente }
 import com.github.blemale.scaffeine.Cache
 import lila.memo.CacheApi
@@ -11,7 +9,7 @@ import scala.concurrent.duration._
 import lila.common.Bus
 import lila.game.{ AnonCookie, Event, Game, GameRepo, PerfPicker, Pov, Rematches, Source }
 import lila.user.{ User, UserRepo }
-import lila.i18n.{ I18nKeys => trans, defaultLang }
+import lila.i18n.{ defaultLang, I18nKeys => trans }
 
 final private class Rematcher(
     gameRepo: GameRepo,

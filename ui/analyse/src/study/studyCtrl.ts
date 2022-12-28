@@ -1,27 +1,28 @@
-import { prop } from 'common';
+import { prop } from 'common/common';
+import { makeNotation } from 'common/notation';
 import throttle from 'common/throttle';
+import { path as treePath } from 'tree';
 import AnalyseCtrl from '../ctrl';
-import { ctrl as memberCtrl } from './studyMembers';
-import { ctrl as chapterCtrl } from './studyChapters';
-import practiceCtrl from './practice/studyPracticeCtrl';
-import { StudyPracticeData, StudyPracticeCtrl } from './practice/interfaces';
-import { ctrl as commentFormCtrl, CommentForm } from './commentForm';
-import { ctrl as glyphFormCtrl, GlyphCtrl } from './studyGlyph';
-import { ctrl as studyFormCtrl, StudyFormCtrl } from './studyForm';
-import { ctrl as topicsCtrl, TopicsCtrl } from './topics';
+import { CommentForm, ctrl as commentFormCtrl } from './commentForm';
+import { DescriptionCtrl } from './description';
+import GamebookPlayCtrl from './gamebook/gamebookPlayCtrl';
+import { ReloadData, StudyChapterMeta, StudyCtrl, StudyData, StudyVm, Tab, TagTypes, ToolTab } from './interfaces';
+import { MultiBoardCtrl } from './multiBoard';
 import { ctrl as notifCtrl } from './notif';
+import { StudyPracticeCtrl, StudyPracticeData } from './practice/interfaces';
+import practiceCtrl from './practice/studyPracticeCtrl';
+import { RelayData } from './relay/interfaces';
+import RelayCtrl from './relay/relayCtrl';
+import { ctrl as serverEvalCtrl } from './serverEval';
+import { ctrl as chapterCtrl } from './studyChapters';
+import { StudyFormCtrl, ctrl as studyFormCtrl } from './studyForm';
+import { GlyphCtrl, ctrl as glyphFormCtrl } from './studyGlyph';
+import { ctrl as memberCtrl } from './studyMembers';
 import { ctrl as shareCtrl } from './studyShare';
 import { ctrl as tagsCtrl } from './studyTags';
-import { ctrl as serverEvalCtrl } from './serverEval';
 import * as tours from './studyTour';
 import * as xhr from './studyXhr';
-import { path as treePath } from 'tree';
-import { StudyCtrl, StudyVm, Tab, ToolTab, TagTypes, StudyData, StudyChapterMeta, ReloadData } from './interfaces';
-import GamebookPlayCtrl from './gamebook/gamebookPlayCtrl';
-import { DescriptionCtrl } from './description';
-import RelayCtrl from './relay/relayCtrl';
-import { RelayData } from './relay/interfaces';
-import { MultiBoardCtrl } from './multiBoard';
+import { TopicsCtrl, ctrl as topicsCtrl } from './topics';
 
 const li = window.lishogi;
 
@@ -276,7 +277,7 @@ export default function (
     currentNode,
     !!relay,
     redraw,
-    ctrl.data.pref.pieceNotation,
+    ctrl.data.pref.notation,
     ctrl.plyOffset(),
     ctrl.trans
   );
@@ -294,7 +295,7 @@ export default function (
   }
   instanciateGamebookPlay();
 
-  function mutateCgConfig(config) {
+  function mutateSgConfig(config) {
     config.drawable.onChange = (shapes: Tree.Shape[]) => {
       if (vm.mode.write) {
         ctrl.tree.setShapes(shapes, ctrl.path);
@@ -354,6 +355,20 @@ export default function (
         node = d.n,
         who = d.w,
         sticky = d.s;
+      const parent = ctrl.tree.nodeAtPath(position.path);
+      if (node.usi) {
+        node.notation = makeNotation(
+          ctrl.data.pref.notation,
+          parent.sfen,
+          ctrl.data.game.variant.key,
+          node.usi,
+          parent.usi
+        );
+        node.capture =
+          (parent.sfen.split(' ')[0].match(/[a-z]/gi) || []).length >
+          (node.sfen.split(' ')[0].match(/[a-z]/gi) || []).length;
+      }
+
       setMemberActive(who);
       if (vm.toolTab() == 'multiBoard' || (relay && relay.intro.active)) multiBoard.addNode(d.p, d.n);
       if (sticky && !vm.mode.sticky) vm.behind++;
@@ -462,7 +477,7 @@ export default function (
       if (wrongChapter(d)) return;
       if (who && who.s === li.sri) return;
       ctrl.tree.setShapes(d.s, ctrl.path);
-      if (ctrl.path === position.path) ctrl.withCg(cg => cg.setShapes(d.s));
+      if (ctrl.path === position.path) ctrl.setShapes(d.s);
       redraw();
     },
     validationError(d) {
@@ -658,7 +673,7 @@ export default function (
       ctrl.userJump(ctrl.path);
       if (!o) xhrReload();
     },
-    mutateCgConfig,
+    mutateSgConfig,
     explorerGame(gameId: string, insert: boolean) {
       makeChange('explorerGame', withPosition({ gameId, insert }));
     },

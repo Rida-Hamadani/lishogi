@@ -1,10 +1,10 @@
-import { opposite } from 'shogiground/util';
-import { evalSwings } from '../nodeFinder';
 import { winningChances } from 'ceval';
+import { isEmpty, prop } from 'common/common';
+import { opposite } from 'shogiground/util';
 import { path as treePath } from 'tree';
-import { empty, prop } from 'common';
-import { OpeningData } from '../explorer/interfaces';
 import AnalyseCtrl from '../ctrl';
+import { OpeningData } from '../explorer/interfaces';
+import { evalSwings } from '../nodeFinder';
 
 export interface RetroCtrl {
   isSolving(): boolean;
@@ -115,7 +115,7 @@ export function make(root: AnalyseCtrl, color: Color): RetroCtrl {
   }
 
   function isCevalReady(node: Tree.Node): boolean {
-    return node.ceval ? node.ceval.depth >= 18 || (node.ceval.depth >= 14 && node.ceval.millis > 7000) : false;
+    return node.ceval ? node.ceval.depth >= 18 || (node.ceval.depth >= 14 && (node.ceval.millis ?? 0) > 7000) : false;
   }
 
   function checkCeval(): void {
@@ -142,7 +142,7 @@ export function make(root: AnalyseCtrl, color: Color): RetroCtrl {
       path: root.path,
     };
     root.userJump(current().prev.path);
-    if (!root.tree.pathIsMainline(bad.path) && empty(bad.node.children)) root.tree.deleteNodeAt(bad.path);
+    if (!root.tree.pathIsMainline(bad.path) && isEmpty(bad.node.children)) root.tree.deleteNodeAt(bad.path);
     redraw();
   }
 
@@ -210,7 +210,7 @@ export function make(root: AnalyseCtrl, color: Color): RetroCtrl {
     noarg: root.trans.noarg,
     node: () => root.node,
     redraw,
-    notation: root.data.pref.pieceNotation,
+    notation: root.data.pref.notation,
     variant: root.data.game.variant.key,
     offset: root.plyOffset(),
   };

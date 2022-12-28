@@ -3,7 +3,7 @@ package lila.game
 import play.api.libs.json._
 
 import shogi.format.forsyth.Sfen
-import shogi.{ Clock, Color, Hand, Hands }
+import shogi.{ Clock, Color }
 import lila.common.Json.jodaWrites
 
 final class JsonView(rematches: Rematches) {
@@ -32,7 +32,7 @@ final class JsonView(rematches: Rematches) {
       .add("tournamentId" -> game.tournamentId)
       .add("winner" -> game.winnerColor)
       .add("lastMove" -> game.lastMoveKeys)
-      .add("check" -> game.situation.checkSquares.headOption.map(_.usiKey))
+      .add("check" -> game.situation.check)
       .add("rematch" -> rematches.of(game.id))
 }
 

@@ -158,10 +158,10 @@ object mon {
       val other   = counter("round.error").withTag("from", "other")
     }
     object titivate {
-      val time                  = future("round.titivate.time")
-      val game                  = histogram("round.titivate.game").withoutTags()           // how many games were processed
-      val total                 = histogram("round.titivate.total").withoutTags()          // how many games should have been processed
-      val old                   = histogram("round.titivate.old").withoutTags()            // how many old games remain
+      val time  = future("round.titivate.time")
+      val game  = histogram("round.titivate.game").withoutTags()  // how many games were processed
+      val total = histogram("round.titivate.total").withoutTags() // how many games should have been processed
+      val old   = histogram("round.titivate.old").withoutTags()   // how many old games remain
       def broken(error: String) = counter("round.titivate.broken").withTag("error", error) // broken game
     }
     object alarm {
@@ -556,7 +556,6 @@ object mon {
           c.withTags(Map("client" -> client, "result" -> r))
         val success     = apply("success") _
         val failure     = apply("failure") _
-        val weak        = apply("weak") _
         val timeout     = apply("timeout") _
         val notFound    = apply("notFound") _
         val notAcquired = apply("notAcquired") _
@@ -614,12 +613,10 @@ object mon {
     val game      = counter("api.cost").withTag("endpoint", "game")
     val activity  = counter("api.cost").withTag("endpoint", "activity")
   }
-  object export {
-    object notation {
-      val game         = counter("export.notation").withTag("type", "game")
-      val study        = counter("export.notation").withTag("type", "study")
-      val studyChapter = counter("export.notation").withTag("type", "studyChapter")
-    }
+  object notation {
+    val game         = counter("notation.export").withTag("type", "game")
+    val study        = counter("notation.export").withTag("type", "study")
+    val studyChapter = counter("notation.export").withTag("type", "studyChapter")
   }
   object bus {
     val classifiers       = gauge("bus.classifiers").withoutTags()

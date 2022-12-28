@@ -1,8 +1,7 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
+import { MaybeVNodes, bind } from 'common/snabbdom';
+import { VNode, h } from 'snabbdom';
 import SwissCtrl from './ctrl';
-import { MaybeVNodes, Pager } from './interfaces';
-import { bind } from './view/util';
+import { Pager } from './interfaces';
 import * as search from './search';
 
 const maxPerPage = 10;

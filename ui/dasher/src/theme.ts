@@ -1,49 +1,28 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import changeColorHandle from 'common/coordsColor';
-
-import { Redraw, Open, bind, header } from './util';
+import { VNode, h } from 'snabbdom';
+import { Open, Redraw, bind, header } from './util';
 
 type Theme = string;
 
-interface ThemeDimData {
+export interface ThemeData {
   current: Theme;
   list: Theme[];
 }
 
-export interface ThemeData {
-  square: ThemeDimData;
-  tall: ThemeDimData;
-}
-
 export interface ThemeCtrl {
-  dimension: () => keyof ThemeData;
-  data: () => ThemeDimData;
+  data: ThemeData;
   trans: Trans;
   set(t: Theme): void;
   open: Open;
 }
 
-export function ctrl(
-  data: ThemeData,
-  trans: Trans,
-  dimension: () => keyof ThemeData,
-  redraw: Redraw,
-  open: Open
-): ThemeCtrl {
-  function dimensionData() {
-    return data[dimension()];
-  }
-
+export function ctrl(data: ThemeData, trans: Trans, redraw: Redraw, open: Open): ThemeCtrl {
   return {
-    dimension,
     trans,
-    data: dimensionData,
+    data,
     set(t: Theme) {
-      const d = dimensionData();
-      d.current = t;
-      applyTheme(t, d.list);
-      $.post('/pref/theme' + (dimension() === 'tall' ? 'Tall' : ''), {
+      data.current = t;
+      applyTheme(t, data.list);
+      $.post('/pref/theme', {
         theme: t,
       }).fail(() => window.lishogi.announce({ msg: 'Failed to save theme preference' }));
       redraw();
@@ -53,28 +32,44 @@ export function ctrl(
 }
 
 export function view(ctrl: ThemeCtrl): VNode {
-  const d = ctrl.data();
-
-  return h('div.sub.theme.' + ctrl.dimension(), [
+  return h('div.sub.theme', [
     header(ctrl.trans.noarg('boardTheme'), () => ctrl.open('links')),
-    h('div.list', d.list.map(themeView(d.current, ctrl.set))),
+    h(
+      'div.list',
+      ctrl.data.list.map(t => themeView(ctrl, t))
+    ),
   ]);
 }
 
-function themeView(current: Theme, set: (t: Theme) => void) {
-  return (t: Theme) =>
-    h(
+function themeView(ctrl: ThemeCtrl, t: Theme) {
+  if (t === 'custom') return customThemeView(ctrl);
+  else
+    return h(
       'a',
       {
-        hook: bind('click', () => set(t)),
+        hook: bind('click', () => ctrl.set(t)),
         attrs: { title: t },
-        class: { active: current === t },
+        class: { active: ctrl.data.current === t },
       },
-      [h('span.' + t)]
+      h('span.' + t)
     );
+}
+
+function customThemeView(ctrl: ThemeCtrl): VNode {
+  return h(
+    'a.custom',
+    {
+      hook: bind('click', () => {
+        ctrl.set('custom');
+        ctrl.open('customTheme');
+      }),
+      attrs: { title: 'custom', 'data-icon': 'H' },
+      class: { active: ctrl.data.current === 'custom' },
+    },
+    ctrl.trans('customTheme')
+  );
 }
 
 function applyTheme(t: Theme, list: Theme[]) {
   $('body').removeClass(list.join(' ')).addClass(t);
-  changeColorHandle();
 }

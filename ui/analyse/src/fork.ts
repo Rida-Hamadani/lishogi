@@ -1,9 +1,9 @@
+import { defined } from 'common/common';
+import { onInsert } from 'common/snabbdom';
 import { h } from 'snabbdom';
-import { renderIndexAndMove } from './moveView';
-import { defined } from 'common';
-import { ConcealOf } from './interfaces';
-import { onInsert } from './util';
 import AnalyseCtrl from './ctrl';
+import { ConcealOf } from './interfaces';
+import { renderIndexAndMove } from './moveView';
 
 export interface ForkCtrl {
   state(): {
@@ -90,7 +90,7 @@ export function view(root: AnalyseCtrl, concealOf?: ConcealOf) {
           },
           renderIndexAndMove(
             {
-              notation: root.data.pref.pieceNotation,
+              notation: root.data.pref.notation,
               variant: root.data.game.variant.key,
               withDots: true,
               showEval: root.showComputer(),

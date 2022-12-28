@@ -1,28 +1,27 @@
-import { Shogi } from 'shogiops/shogi';
-import { INITIAL_SFEN, makeSfen, parseSfen } from 'shogiops/sfen';
-import { scalashogiCharPair } from 'shogiops/compat';
+import { Notation, makeNotationWithPosition } from 'common/notation';
+import { initialSfen, makeSfen, parseSfen } from 'shogiops/sfen';
 import { Move } from 'shogiops/types';
-import { makeSquare, makeUsi, parseUsi } from 'shogiops/util';
+import { makeUsi, parseUsi } from 'shogiops/util';
+import { Position } from 'shogiops/variant/position';
+import { Shogi } from 'shogiops/variant/shogi';
 import { TreeWrapper } from 'tree';
-import { pretendItsUsi } from 'common';
-import { makeNotationWithPosition, Notation } from 'common/notation';
+import { scalashogiCharPair } from './util';
 
 export function usiToTree(usis: Usi[], notation: Notation): Tree.Node {
   const pos = Shogi.default();
   const root: Tree.Node = {
     ply: 0,
     id: '',
-    sfen: INITIAL_SFEN,
+    sfen: initialSfen('standard'),
     children: [],
   } as Tree.Node;
   let current = root;
-  let lastMove: Move | undefined = undefined;
   usis.forEach((usi, i) => {
-    const move = parseUsi(usi)!;
-    const notationMove = makeNotationWithPosition(notation, pos, move, lastMove);
-    lastMove = move;
+    const move = parseUsi(usi)!,
+      captured = pos.board.has(move.to),
+      notationMove = makeNotationWithPosition(notation, pos, move, pos.lastMove);
     pos.play(move);
-    const nextNode = makeNode(pos, move, notationMove, i + 1);
+    const nextNode = makeNode(pos, move, notationMove, captured, i + 1);
     current.children.push(nextNode);
     current = nextNode;
   });
@@ -46,29 +45,29 @@ export function mergeSolution(
   pov: Color,
   notation: Notation
 ): void {
-  const initialNode = root.nodeAtPath(initialPath);
-  const pos = Shogi.fromSetup(parseSfen(initialNode.sfen).unwrap(), false).unwrap();
-  const fromPly = initialNode.ply;
+  const initialNode = root.nodeAtPath(initialPath),
+    pos = parseSfen('standard', initialNode.sfen, false).unwrap(),
+    fromPly = initialNode.ply;
 
-  let lastMove: Move | undefined = undefined;
   const nodes = solution.map((usi, i) => {
-    const move = parseUsi(pretendItsUsi(usi))!;
-    const notationMove = makeNotationWithPosition(notation, pos, move, lastMove);
-    lastMove = move;
+    const move = parseUsi(usi)!,
+      captured = pos.board.has(move.to),
+      notationMove = makeNotationWithPosition(notation, pos, move, pos.lastMove);
     pos.play(move);
-    const node = makeNode(pos, move, notationMove, fromPly + i + 1);
+    const node = makeNode(pos, move, notationMove, captured, fromPly + i + 1);
     if ((pov == 'sente') == (node.ply % 2 == 1)) (node as any).puzzle = 'good';
     return node;
   });
   root.addNodes(nodes, initialPath);
 }
 
-const makeNode = (pos: Shogi, move: Move, notation: MoveNotation, ply: number) => ({
+const makeNode = (pos: Position, move: Move, notation: MoveNotation, capture: boolean, ply: number): Tree.Node => ({
   ply,
-  sfen: makeSfen(pos.toSetup()),
+  sfen: makeSfen(pos),
   id: scalashogiCharPair(move),
   usi: makeUsi(move),
   notation: notation,
-  check: pos.isCheck() ? makeSquare(pos.toSetup().board.kingOf(pos.turn)!) : undefined,
+  capture: capture,
+  check: pos.isCheck(),
   children: [],
 });

@@ -1,6 +1,6 @@
+import { bind } from 'common/snabbdom';
 import { h } from 'snabbdom';
 import { Redraw } from './interfaces';
-import { bind } from './util';
 
 export interface BoolSetting {
   name: string;

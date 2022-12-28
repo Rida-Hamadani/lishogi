@@ -1,9 +1,9 @@
 import * as miniBoard from 'common/mini-board';
-import StormCtrl from '../ctrl';
-import { getNow, onInsert } from 'puz/util';
-import { h } from 'snabbdom';
 import { numberSpread } from 'common/number';
-import { VNode } from 'snabbdom/vnode';
+import { onInsert } from 'common/snabbdom';
+import { getNow } from 'puz/util';
+import { VNode, h } from 'snabbdom';
+import StormCtrl from '../ctrl';
 
 const renderEnd = (ctrl: StormCtrl): VNode[] => [...renderSummary(ctrl), renderHistory(ctrl)];
 
@@ -110,7 +110,7 @@ const renderHistory = (ctrl: StormCtrl): VNode => {
               key: round.puzzle.id,
             },
             [
-              h('a.storm--end__history__round__puzzle.mini-board.cg-wrap', {
+              h('a.storm--end__history__round__puzzle.mini-board.sg-wrap', {
                 attrs: {
                   href: `/training/${round.puzzle.id}`,
                   target: '_blank',

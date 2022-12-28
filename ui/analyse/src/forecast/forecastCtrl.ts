@@ -1,6 +1,6 @@
-import { prop } from 'common';
-import { ForecastCtrl, ForecastData, ForecastStep } from './interfaces';
+import { prop } from 'common/common';
 import { AnalyseData } from '../interfaces';
+import { ForecastCtrl, ForecastData, ForecastStep } from './interfaces';
 
 export function make(cfg: ForecastData, data: AnalyseData, redraw: () => void): ForecastCtrl {
   const saveUrl = `/${data.game.id}${data.player.id}/forecasts`;
@@ -100,7 +100,7 @@ export function make(cfg: ForecastData, data: AnalyseData, redraw: () => void): 
   }
 
   function encodeUsi(usi: string): string {
-    return usi.replace(/\+/, '%2B');
+    return usi.replace(/\+/, '%2B').replace(/=/, '%3D');
   }
 
   function playAndSave(node: ForecastStep) {

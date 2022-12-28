@@ -1,17 +1,16 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import * as round from '../round';
+import { notationsWithColor } from 'common/notation';
+import { MaybeVNodes } from 'common/snabbdom';
 import throttle from 'common/throttle';
 import * as game from 'game';
-import * as status from 'game/status';
 import { game as gameRoute } from 'game/router';
+import * as status from 'game/status';
 import viewStatus from 'game/view/status';
-import * as util from '../util';
-import RoundController from '../ctrl';
-import { MaybeVNodes, RoundData } from '../interfaces';
-import { makeMoveNotationLine } from 'common/notation';
 import { toBlackWhite } from 'shogiops/util';
-import { INITIAL_SFEN } from 'shogiops/sfen';
+import { VNode, h } from 'snabbdom';
+import RoundController from '../ctrl';
+import { RoundData } from '../interfaces';
+import * as round from '../round';
+import * as util from '../util';
 
 const scrollMax = 99999,
   moveTag = 'm2';
@@ -42,22 +41,9 @@ function plyOffset(ctrl: RoundController): number {
 }
 
 export function renderResult(ctrl: RoundController): VNode | undefined {
-  let result;
-  if (status.finished(ctrl.data))
-    switch (ctrl.data.game.winner) {
-      case 'sente':
-        result = '1-0';
-        break;
-      case 'gote':
-        result = '0-1';
-        break;
-      default:
-        result = '½-½';
-    }
-  if (result || status.aborted(ctrl.data)) {
+  if (status.finished(ctrl.data) || status.aborted(ctrl.data)) {
     const winner = ctrl.data.game.winner;
     return h('div.result-wrap', [
-      h('p.result', result || ''),
       h(
         'p.status',
         {
@@ -75,29 +61,23 @@ export function renderResult(ctrl: RoundController): VNode | undefined {
 
 function renderMoves(ctrl: RoundController): MaybeVNodes {
   const steps = ctrl.data.steps;
-  if (typeof round.lastPly(ctrl.data) === 'undefined') return [];
-
-  const usis = steps.slice(1).map(s => s.usi);
-  const movesNotation: MoveNotation[] = makeMoveNotationLine(
-    ctrl.data.pref.pieceNotation,
-    ctrl.data.game.initialSfen || INITIAL_SFEN, // todo initial sfen of variant
-    ctrl.data.game.variant.key,
-    usis
-  );
+  if (steps.length <= 1) return [];
 
   const els: MaybeVNodes = [];
   const curMove = ctrl.ply - (ctrl.data.game.startedAtPly || 0) + (ctrl.data.game.startedAtMove ?? 1) - 1;
 
-  movesNotation.forEach((m, i) => {
-    const moveNumber = i + (ctrl.data.game.startedAtMove || 1);
+  steps.slice(1).forEach((s, i) => {
+    const moveNumber = i + (ctrl.data.game.startedAtMove || 1),
+      useColorIcon = notationsWithColor.includes(ctrl.data.pref.notation);
     els.push(h('index', moveNumber));
     els.push(
       h(
-        moveTag,
+        moveTag +
+          (useColorIcon ? '.color-icon.' + ((i + (ctrl.data.game.startedAtPly || 0)) % 2 ? 'gote' : 'sente') : ''),
         {
           class: { active: moveNumber === curMove },
         },
-        m
+        s.notation
       )
     );
   });
@@ -106,24 +86,25 @@ function renderMoves(ctrl: RoundController): MaybeVNodes {
   return els;
 }
 
-export function analysisButton(ctrl: RoundController): VNode | undefined {
-  const forecastCount = ctrl.data.forecastCount;
-  return game.userAnalysable(ctrl.data)
-    ? h(
-        'a.fbt.analysis',
-        {
-          class: {
-            text: !!forecastCount,
-          },
-          attrs: {
-            title: ctrl.trans.noarg('analysis'),
-            href: gameRoute(ctrl.data, ctrl.data.player.color) + '/analysis#' + ctrl.ply,
-            'data-icon': 'A',
-          },
-        },
-        forecastCount ? ['' + forecastCount] : []
-      )
-    : undefined;
+export function analysisButton(ctrl: RoundController): VNode {
+  const forecastCount = ctrl.data.forecastCount,
+    disabled = !game.userAnalysable(ctrl.data);
+  return h(
+    'a.fbt.analysis',
+    {
+      class: {
+        text: !!forecastCount,
+        disabled: disabled,
+      },
+      attrs: {
+        disabled: disabled,
+        title: ctrl.trans.noarg('analysis'),
+        href: gameRoute(ctrl.data, ctrl.data.player.color) + '/analysis#' + ctrl.ply,
+        'data-icon': 'A',
+      },
+    },
+    forecastCount ? ['' + forecastCount] : []
+  );
 }
 
 function renderButtons(ctrl: RoundController) {
@@ -194,20 +175,23 @@ function initMessage(d: RoundData, trans: TransNoArg) {
 }
 
 function col1Button(ctrl: RoundController, dir: number, icon: string, disabled: boolean) {
-  return disabled
-    ? null
-    : h('button.fbt', {
-        attrs: {
-          disabled: disabled,
-          'data-icon': icon,
-          'data-ply': ctrl.ply + dir,
-        },
-        hook: util.bind('mousedown', e => {
-          e.preventDefault();
-          ctrl.userJump(ctrl.ply + dir);
-          ctrl.redraw();
-        }),
-      });
+  return h('button.fbt', {
+    attrs: {
+      disabled: disabled,
+      'data-icon': icon,
+      'data-ply': ctrl.ply + dir,
+    },
+    hook: util.bind(
+      'mousedown',
+      e => {
+        e.preventDefault();
+        ctrl.userJump(ctrl.ply + dir);
+        ctrl.redraw();
+      },
+      undefined,
+      false
+    ),
+  });
 }
 
 export function render(ctrl: RoundController): VNode | undefined {
@@ -230,9 +214,11 @@ export function render(ctrl: RoundController): VNode | undefined {
                 }
               }
             });
-            ctrl.autoScroll = () => autoScroll(el, ctrl);
-            ctrl.autoScroll();
-            window.addEventListener('load', ctrl.autoScroll);
+            if (col1) {
+              ctrl.autoScroll = () => autoScroll(el, ctrl);
+              ctrl.autoScroll();
+              window.addEventListener('load', ctrl.autoScroll);
+            }
           }),
         },
         renderMoves(ctrl)
@@ -254,7 +240,19 @@ export function render(ctrl: RoundController): VNode | undefined {
                     moves,
                     col1Button(ctrl, 1, 'X', ctrl.ply == round.lastPly(d)),
                   ])
-                : moves
+                : h(
+                    'div.areplay',
+                    {
+                      hook: util.onInsert(el => {
+                        if (!col1) {
+                          ctrl.autoScroll = () => autoScroll(el, ctrl);
+                          ctrl.autoScroll();
+                          window.addEventListener('load', ctrl.autoScroll);
+                        }
+                      }),
+                    },
+                    moves
+                  )
               : renderResult(ctrl)),
         ]
       );

@@ -1,4 +1,4 @@
-import { defined, pretendItsUsi, prop, Prop } from 'common';
+import { Prop, defined, prop } from 'common/common';
 import throttle from 'common/throttle';
 
 export interface EvalCache {
@@ -10,7 +10,7 @@ export interface EvalCache {
 
 const evalPutMinDepth = 20;
 const evalPutMinNodes = 3e6;
-const evalPutMaxMoves = 10;
+const evalPutMaxMoves = 12;
 
 function qualityCheck(ev): boolean {
   // below 500k nodes, the eval might come from an imminent fourfold repetition
@@ -28,10 +28,7 @@ function toPutData(variant, ev) {
       return {
         cp: pv.cp,
         mate: pv.mate,
-        moves: pv.moves
-          .slice(0, evalPutMaxMoves)
-          .map(m => pretendItsUsi(m))
-          .join(' '),
+        moves: pv.moves.slice(0, evalPutMaxMoves).join(' '),
       };
     }),
   };
@@ -46,8 +43,8 @@ function toCeval(e) {
     nodes: e.knodes * 1000,
     depth: e.depth,
     pvs: e.pvs.map(function (from) {
-      const to: any = {
-        moves: from.moves.split(' ').map(m => pretendItsUsi(m)),
+      const to: Tree.PvData = {
+        moves: from.moves.split(' '),
       };
       if (defined(from.cp)) to.cp = from.cp;
       else to.mate = from.mate;
@@ -65,10 +62,18 @@ export function make(opts): EvalCache {
   const fetchedBySfen = {};
   const upgradable = prop(false);
   return {
-    onCeval: throttle(500, function () {
+    onCeval: throttle(500, () => {
       const node = opts.getNode(),
         ev = node.ceval;
-      if (ev && !ev.cloud && node.sfen in fetchedBySfen && qualityCheck(ev) && opts.canPut()) {
+      const fetched = fetchedBySfen[node.sfen];
+      if (
+        ev &&
+        !ev.cloud &&
+        node.sfen in fetchedBySfen &&
+        (!fetched || fetched.depth < ev.depth) &&
+        qualityCheck(ev) &&
+        opts.canPut()
+      ) {
         opts.send('evalPut', toPutData(opts.variant, ev));
       }
     }),

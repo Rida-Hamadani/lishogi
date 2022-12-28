@@ -1,7 +1,5 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-
-import { Redraw, Close, bind, header } from './util';
+import { VNode, h } from 'snabbdom';
+import { Close, Redraw, bind, header } from './util';
 
 type Key = string;
 
@@ -23,7 +21,7 @@ export interface SoundCtrl {
 }
 
 export function ctrl(raw: string[], trans: Trans, redraw: Redraw, close: Close): SoundCtrl {
-  const list: Sound[] = raw.map(s => s.split(' '));
+  const list: Sound[] = raw.map(s => s.split('|'));
 
   const api = window.lishogi.sound;
 
@@ -36,7 +34,7 @@ export function ctrl(raw: string[], trans: Trans, redraw: Redraw, close: Close):
     set(k: Key) {
       api.speech(k == 'speech');
       window.lishogi.pubsub.emit('speech.enabled', api.speech());
-      if (api.speech()) api.say('Speech synthesis ready');
+      if (api.speech()) api.say({ en: 'Speech synthesis ready' });
       else {
         api.changeSet(k);
         // If we want to play move for all sets we need to get move sound for pentatonic

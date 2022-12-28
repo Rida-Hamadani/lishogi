@@ -3,6 +3,7 @@ package views.html.learn
 import play.api.libs.json.Json
 
 import lila.api.Context
+import play.api.libs.json._
 import lila.app.templating.Environment._
 import lila.app.ui.ScalatagsTemplate._
 import lila.common.String.html.safeJsonValue
@@ -13,18 +14,27 @@ object index {
 
   import trans.learn.{ play => _, _ }
 
-  def apply(data: Option[play.api.libs.json.JsValue])(implicit ctx: Context) =
+  def apply(data: Option[JsValue], pref: lila.pref.Pref)(implicit ctx: Context) =
     views.html.base.layout(
       title = s"${learnShogi.txt()} - ${byPlaying.txt()}",
       moreJs = frag(
         jsModule("learn"),
         embedJsUnsafe(s"""$$(function() {
 LishogiLearn(document.getElementById('learn-app'), ${safeJsonValue(
-          Json.obj(
-            "data" -> data,
-            "i18n" -> i18nJsObject(i18nKeys)
-          )
-        )})})""")
+            Json.obj(
+              "data" -> data,
+              "pref" -> Json.obj(
+                "coords"             -> pref.coords,
+                "moveEvent"          -> pref.moveEvent,
+                "highlightLastDests" -> pref.highlightLastDests,
+                "highlightCheck"     -> pref.highlightCheck,
+                "squareOverlay"      -> pref.squareOverlay,
+                "resizeHandle"       -> pref.resizeHandle,
+                "notation"           -> pref.notation
+              ),
+              "i18n" -> i18nJsObject(i18nKeys)
+            )
+          )})})""")
       ),
       moreCss = cssTag("learn"),
       openGraph = lila.app.ui
@@ -134,6 +144,7 @@ LishogiLearn(document.getElementById('learn-app'), ${safeJsonValue(
       reuseCapturedPieces,
       dropIntro,
       capturedPiecesCanBeDropped,
+      dropLimitations,
       youCannotHaveTwoUnpromotedPawns,
       protection,
       keepYourPiecesSafe,

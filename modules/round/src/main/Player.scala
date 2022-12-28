@@ -6,7 +6,7 @@ import shogi.{ Centis, MoveMetrics, Status }
 import actorApi.round.{ DrawNo, ForecastPlay, HumanPlay, TakebackNo, TooManyPlies }
 import lila.game.actorApi.MoveGameEvent
 import lila.common.Bus
-import lila.game.{ Event, Game, Pov, Progress }
+import lila.game.{ Game, Pov, Progress }
 import lila.game.Game.PlayerId
 import cats.data.Validated
 
@@ -26,7 +26,7 @@ final private class Player(
     play match {
       case HumanPlay(_, usi, blur, lag, _) =>
         pov match {
-          case Pov(game, _) if game.plies > Game.maxPlies =>
+          case Pov(game, _) if game.playedPlies > Game.maxPlies =>
             round ! TooManyPlies
             fuccess(Nil)
           case Pov(game, color) if game playableBy color =>
@@ -42,13 +42,13 @@ final private class Player(
           case Pov(game, _) if game.finished           => fufail(ClientError(s"$pov game is finished"))
           case Pov(game, _) if game.aborted            => fufail(ClientError(s"$pov game is aborted"))
           case Pov(game, color) if !game.turnOf(color) => fufail(ClientError(s"$pov not your turn"))
-          case _                                       => fufail(ClientError(s"$pov move refused for some reason"))
+          case _ => fufail(ClientError(s"$pov move refused for some reason"))
         }
     }
 
   private[round] def bot(usi: Usi, round: RoundDuct)(pov: Pov)(implicit proxy: GameProxy): Fu[Events] =
     pov match {
-      case Pov(game, _) if game.plies > Game.maxPlies =>
+      case Pov(game, _) if game.playedPlies > Game.maxPlies =>
         round ! TooManyPlies
         fuccess(Nil)
       case Pov(game, color) if game playableBy color =>
@@ -62,7 +62,7 @@ final private class Player(
       case Pov(game, _) if game.finished           => fufail(ClientError(s"$pov game is finished"))
       case Pov(game, _) if game.aborted            => fufail(ClientError(s"$pov game is aborted"))
       case Pov(game, color) if !game.turnOf(color) => fufail(ClientError(s"$pov not your turn"))
-      case _                                       => fufail(ClientError(s"$pov move refused for some reason"))
+      case _ => fufail(ClientError(s"$pov move refused for some reason"))
     }
 
   private def postHumanOrBotPlay(
@@ -94,7 +94,7 @@ final private class Player(
               notifyMove(usi, progress.game) >> {
                 if (progress.game.finished) moveFinish(progress.game) dmap { progress.events ::: _ }
                 else
-                  fuccess(progress.events :+ Event.Reload)
+                  fuccess(progress.events)
               }
         }
     } else
@@ -107,7 +107,7 @@ final private class Player(
 
   private[round] def requestFishnet(game: Game, round: RoundDuct): Funit =
     game.playableByAi ?? {
-      if (game.plies <= fishnetPlayer.maxPlies) fishnetPlayer(game)
+      if (game.playedPlies <= fishnetPlayer.maxPlies) fishnetPlayer(game)
       else fuccess(round ! actorApi.round.ResignAi)
     }
 
@@ -120,13 +120,13 @@ final private class Player(
       blur: Boolean,
       metrics: MoveMetrics
   ): Validated[String, MoveResult] =
-    game.shogi(usi) map { nsg =>
+    game.shogi(usi, metrics) map { nsg =>
       if (nsg.clock.exists(_.outOfTime(game.turnColor, withGrace = false))) Flagged
       else MoveApplied(game.update(nsg, usi, blur))
     }
 
   private def notifyMove(usi: Usi, game: Game): Unit = {
-    import lila.hub.actorApi.round.{ CorresMoveEvent, MoveEvent, SimulMoveEvent } // todo UsiEvent
+    import lila.hub.actorApi.round.{ CorresMoveEvent, MoveEvent, SimulMoveEvent }
     val color = !game.situation.color
     val moveEvent = MoveEvent(
       gameId = game.id,
@@ -168,7 +168,8 @@ final private class Player(
       case Status.Stalemate      => finisher.other(game, _.Stalemate, game.situation.winner)
       case Status.Impasse27      => finisher.other(game, _.Impasse27, game.situation.winner)
       case Status.PerpetualCheck => finisher.other(game, _.PerpetualCheck, game.situation.winner)
-      case Status.VariantEnd     => finisher.other(game, _.VariantEnd, game.situation.winner)
+      case Status.RoyalsLost     => finisher.other(game, _.RoyalsLost, game.situation.winner)
+      case Status.BareKing       => finisher.other(game, _.BareKing, game.situation.winner)
       case Status.Draw           => finisher.other(game, _.Draw, None)
       case _                     => fuccess(Nil)
     }

@@ -5,26 +5,27 @@ case class Pref(
     dark: Boolean,
     transp: Boolean,
     bgImg: Option[String],
-    isTall: Boolean,
     theme: String,
+    customTheme: Option[CustomTheme],
     pieceSet: String,
-    themeTall: String,
+    chuPieceSet: String,
     soundSet: String,
     blindfold: Int,
     takeback: Int,
     moretime: Int,
     clockTenths: Int,
     clockCountdown: Int,
-    clockBar: Boolean,
     clockSound: Boolean,
     premove: Boolean,
+    boardLayout: Int,
     animation: Int,
-    captured: Boolean,
     follow: Boolean,
-    highlight: Boolean,
+    coords: Int,
+    highlightLastDests: Boolean,
+    highlightCheck: Boolean,
+    squareOverlay: Boolean,
     destination: Boolean,
     dropDestination: Boolean,
-    coords: Int,
     replay: Int,
     challenge: Int,
     message: Int,
@@ -36,7 +37,7 @@ case class Pref(
     keyboardMove: Int,
     zen: Int,
     moveEvent: Int,
-    pieceNotation: Int, // rename to moveNotation
+    notation: Int,
     resizeHandle: Int,
     tags: Map[String, String] = Map.empty
 ) {
@@ -45,13 +46,9 @@ case class Pref(
 
   def id = _id
 
-  def realTheme     = Theme(theme)
-  def realPieceSet  = PieceSet(pieceSet)
-  def realThemeTall = ThemeTall(themeTall)
+  def isUsingCustomTheme = theme == "custom"
 
   def themeColor = if (transp || dark) "#2e2a24" else "#dbd7d1"
-
-  def realSoundSet = SoundSet(soundSet)
 
   def coordColorName = Color.choices.toMap.get(coordColor).fold("random")(_.toLowerCase)
   def coordsClass    = Coords classOf coords
@@ -72,48 +69,40 @@ case class Pref(
         PieceSet.allByName get value map { p =>
           copy(pieceSet = p.name)
         }
-      case "themeTall" =>
-        ThemeTall.allByName get value map { t =>
-          copy(themeTall = t.name)
+      case "chuPieceSet" =>
+        ChuPieceSet.allByName get value map { p =>
+          copy(chuPieceSet = p.name)
         }
-      case "isTall" =>
-        copy(isTall = value == "true").some
       case "soundSet" =>
         SoundSet.allByKey get value map { s =>
           copy(soundSet = s.key)
         }
       case "zen" => copy(zen = if (value == "1") 1 else 0).some
-      case "pieceNotation" =>
-        Notations.allByKey get value map { n =>
-          copy(pieceNotation = n.key.toInt)
+      case "notation" =>
+        value.toIntOption flatMap { index =>
+          Notations.allByIndex get index map { n =>
+            copy(notation = n.index)
+          }
         }
       case _ => none
     }
 
-  def animationFactor =
+  def animationMillis: Int =
     animation match {
       case Animation.NONE   => 0
-      case Animation.FAST   => 0.5f
-      case Animation.NORMAL => 1
-      case Animation.SLOW   => 2
-      case _                => 1
+      case Animation.FAST   => 120
+      case Animation.NORMAL => 250
+      case Animation.SLOW   => 500
+      case _                => 250
     }
 
   def isBlindfold = blindfold == Pref.Blindfold.YES
 
   def bgImgOrDefault = bgImg | Pref.defaultBgImg
 
+  def customThemeOrDefault = customTheme | CustomTheme.default
+
   def isZen = zen == Zen.YES
-
-  def isSquare = !isTall
-
-  // atob("aHR0cDovL2NoZXNzLWNoZWF0LmNvbS9ob3dfdG9fY2hlYXRfYXRfbGljaGVzcy5odG1s")
-  def botCompatible =
-    theme == "brown" &&
-      pieceSet == "orangain" &&
-      animation == Animation.NONE &&
-      highlight &&
-      coords == Coords.OUTSIDE
 }
 
 object Pref {
@@ -200,20 +189,6 @@ object Pref {
     )
   }
 
-  object PieceNotation {
-    val WESTERN  = 0
-    val KAWASAKI = 1
-    val JAPANESE = 2
-    val WESTERN2 = 3
-
-    val choices = Seq(
-      WESTERN  -> "0",
-      WESTERN2 -> "3",
-      KAWASAKI -> "1",
-      JAPANESE -> "2"
-    )
-  }
-
   object Blindfold extends BooleanPref {
     override val choices = Seq(
       NO  -> "What? No!",
@@ -245,6 +220,16 @@ object Pref {
     )
   }
 
+  object BoardLayout {
+    val SIDE    = 0
+    val COMPACT = 1
+
+    val choices = Seq(
+      SIDE    -> "Side",
+      COMPACT -> "Compact"
+    )
+  }
+
   object Animation {
     val NONE   = 0
     val FAST   = 1
@@ -263,17 +248,20 @@ object Pref {
     val NONE    = 0
     val INSIDE  = 1
     val OUTSIDE = 2
+    val EDGE    = 3
 
     val choices = Seq(
       NONE    -> "No",
       INSIDE  -> "Inside the board",
-      OUTSIDE -> "Outside the board"
+      OUTSIDE -> "Outside the board",
+      EDGE    -> "Edge of the board"
     )
 
     def classOf(v: Int) =
       v match {
         case INSIDE  => "in"
         case OUTSIDE => "out"
+        case EDGE    => "edge"
         case _       => "no"
       }
   }
@@ -377,21 +365,22 @@ object Pref {
     dark = false,
     transp = false,
     bgImg = none,
-    isTall = false,
     theme = Theme.default.name,
+    customTheme = none,
     pieceSet = PieceSet.default.name,
-    themeTall = ThemeTall.default.name,
+    chuPieceSet = ChuPieceSet.default.name,
     soundSet = SoundSet.default.name,
     blindfold = Blindfold.NO,
     takeback = Takeback.ALWAYS,
     moretime = Moretime.ALWAYS,
-    clockBar = true,
     clockSound = true,
     premove = true,
+    boardLayout = BoardLayout.SIDE,
     animation = 2,
-    captured = true,
     follow = true,
-    highlight = true,
+    highlightLastDests = true,
+    highlightCheck = true,
+    squareOverlay = true,
     destination = true,
     dropDestination = true,
     coords = Coords.OUTSIDE,
@@ -408,7 +397,7 @@ object Pref {
     keyboardMove = KeyboardMove.NO,
     zen = Zen.NO,
     moveEvent = MoveEvent.BOTH,
-    pieceNotation = PieceNotation.WESTERN,
+    notation = Notations.western.index,
     resizeHandle = ResizeHandle.INITIAL,
     tags = Map.empty
   )

@@ -64,21 +64,21 @@ object features {
             tr(unlimited)(
               a(href := routes.Puzzle.home)("Tactical puzzles from user games")
             ),
-            //tr(unlimited)(
+            // tr(unlimited)(
             //  a(href := s"${routes.UserAnalysis.index}#explorer")("Opening explorer"),
             //  " (62 million games!)"
-            //),
-            //tr(unlimited)(
+            // ),
+            // tr(unlimited)(
             //  a(href := s"${routes.UserAnalysis.parseArg("QN4n1/6r1/3k4/8/b2K4/8/8/8_b_-_-")}#explorer")(
             //    "7-piece endgame tablebase"
             //  )
-            //),
+            // ),
             tr(check)(
               "Download/Upload any game as KIF or CSA"
             ),
             tr(unlimited)(
               a(href := routes.Search.index(1))("Advanced search"),
-              " through more than 800 thousand Lishogi games"
+              " through more than 1 million Lishogi games"
             ),
             tr(unlimited)(
               a(href := routes.Video.index)("Shogi video library")
@@ -103,8 +103,8 @@ object features {
               strong("All features to come, forever")
             )
           ),
-          //header(h1(dataIcon := "")("Mobile")),
-          //tbody(
+          // header(h1(dataIcon := "")("Mobile")),
+          // tbody(
           //  tr(unlimited)(
           //    "Online and offline games, with 8 variants"
           //  ),
@@ -135,22 +135,12 @@ object features {
           //  tr(check)(
           //    strong("All features to come, forever")
           //  )
-          //),
-          header(h1("Support Lishogi")),
+          // ),
           tbody(cls := "support")(
-            st.tr(
-              th(
-                "Contribute to Lishogi and",
-                br,
-                "get a cool looking Patron icon"
-              ),
-              td("-"),
-              td(span(dataIcon := patronIconChar, cls := "is is-green text check")("Yes"))
-            ),
             st.tr(cls := "price")(
               th,
               td(cls := "green")("$0"),
-              td(a(href := routes.Plan.index, cls := "green button")("$5/month"))
+              td(a(href := routes.Plan.index, cls := "green button")(trans.patron.donate()))
             )
           )
         ),
@@ -172,7 +162,13 @@ object features {
 
   private def header(name: Frag)(implicit lang: Lang) =
     thead(
-      st.tr(th(name), th(trans.patron.freeAccount()), th(trans.patron.lishogiPatron()))
+      st.tr(
+        th(name),
+        th(trans.patron.freeAccount()),
+        th(
+          span(dataIcon := patronIconChar, cls := "is text header")(trans.patron.lishogiPatron())
+        )
+      )
     )
 
   private val unlimited = span(dataIcon := "E", cls := "is is-green text unlimited")("Unlimited")

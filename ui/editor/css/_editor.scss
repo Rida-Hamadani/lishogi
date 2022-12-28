@@ -1,18 +1,13 @@
 @import 'layout';
 @import 'spare';
 @import 'tools';
-@import 'pocket';
-
-@include body-fixed-scroll;
+@import 'hands';
 
 .board-editor {
   user-select: none;
 
   .main-board {
     grid-area: board;
-  }
-  cg-board {
-    cursor: inherit;
   }
 
   .copyables {

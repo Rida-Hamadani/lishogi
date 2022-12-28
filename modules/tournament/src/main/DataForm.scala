@@ -106,14 +106,14 @@ final class DataForm {
         if (lila.security.Granter(_.ManageTournament)(user)) number
         else numberIn(minuteChoices)
       },
-      "waitMinutes"      -> optional(numberIn(waitMinuteChoices)),
-      "startDate"        -> optional(inTheFuture(ISODateTimeOrTimestamp.isoDateTimeOrTimestamp)),
-      "variant"          -> optional(text.verifying(v => guessVariant(v).isDefined)),
-      "position"         -> optional(lila.common.Form.sfen.clean),
-      "mode"             -> optional(number.verifying(Mode.all.map(_.id) contains _)), // deprecated, use rated
-      "rated"            -> optional(boolean),
-      "password"         -> optional(nonEmptyText),
-      "conditions"       -> Condition.DataForm.all,
+      "waitMinutes" -> optional(numberIn(waitMinuteChoices)),
+      "startDate"   -> optional(inTheFuture(ISODateTimeOrTimestamp.isoDateTimeOrTimestamp)),
+      "variant"     -> optional(text.verifying(v => guessVariant(v).isDefined)),
+      "position"    -> optional(lila.common.Form.sfen.clean),
+      "mode"        -> optional(number.verifying(Mode.all.map(_.id) contains _)), // deprecated, use rated
+      "rated"       -> optional(boolean),
+      "password"    -> optional(nonEmptyText),
+      "conditions"  -> Condition.DataForm.all,
       "teamBattleByTeam" -> optional(nonEmptyText),
       "berserkable"      -> optional(boolean),
       "streakable"       -> optional(boolean),
@@ -168,7 +168,7 @@ object DataForm {
   val positionDefault = StartingPosition.initial.sfen
 
   val validVariants =
-    List(Standard, Minishogi)
+    List(Standard, Minishogi, Chushogi)
 
   def guessVariant(from: String): Option[Variant] =
     validVariants.find { v =>

@@ -1,6 +1,5 @@
-var shogi = require('shogiops/shogi');
 var sfen = require('shogiops/sfen');
-var util = require('shogiops/variantUtil');
+var util = require('shogiops/variant/util');
 
 $(function () {
   lishogi.requestIdleCallback(function () {
@@ -8,16 +7,16 @@ $(function () {
       var $captcha = $(this);
       var $board = $captcha.find('.mini-board');
       var $input = $captcha.find('input').val('');
-      var cg = $board.data('shogiground');
+      var sg = $board.data('shogiground');
       var destsJson = JSON.parse(lishogi.readServerSfen($board.data('x')));
       var dests = new Map();
       for (var k in destsJson) dests.set(k, destsJson[k].match(/.{2}/g));
-      cg.set({
-        turnColor: cg.state.orientation,
+      sg.set({
+        turnColor: sg.state.orientation,
         movable: {
           free: false,
           dests: dests,
-          color: cg.state.orientation,
+          color: sg.state.orientation,
           events: {
             after: function (orig, dest) {
               $captcha.removeClass('success failure');
@@ -39,17 +38,17 @@ $(function () {
             $captcha.toggleClass('failure', data != 1);
             if (data == 1) {
               const key = solution.slice(3, 5);
-              const piece = cg.state.pieces.get(key);
-              const sfen = cg.getSfen() + (piece.color === 'sente' ? ' w' : ' b');
-              const pos = sfen.parseSfen(sfen).chain(s => shogi.Shogi.fromSetup(s, false));
+              const piece = sg.state.pieces.get(key);
+              const sfenStr = sg.getBoardSfen() + (piece.color === 'sente' ? ' w' : ' b');
+              const pos = sfen.parseSfen('standard', sfenStr, false);
               if (pos.isOk && !pos.value.isCheckmate()) {
-                cg.setPieces(
+                sg.setPieces(
                   new Map([
                     [
                       key,
                       {
                         color: piece.color,
-                        role: util.promote('shogi')(piece.role),
+                        role: util.promote('standard')(piece.role),
                         promoted: true,
                       },
                     ],
@@ -61,7 +60,7 @@ $(function () {
               setTimeout(function () {
                 lishogi.parseSfen($board);
                 $board.data('shogiground').set({
-                  turnColor: cg.state.orientation,
+                  turnColor: sg.state.orientation,
                   movable: {
                     dests: dests,
                   },

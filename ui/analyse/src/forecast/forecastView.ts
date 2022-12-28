@@ -1,10 +1,9 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import { ForecastCtrl, ForecastStep } from './interfaces';
+import { Notation, makeNotation, makeNotationLine, notationsWithColor } from 'common/notation';
+import { MaybeVNodes, bind, dataIcon } from 'common/snabbdom';
+import spinner from 'common/spinner';
+import { VNode, h } from 'snabbdom';
 import AnalyseCtrl from '../ctrl';
-import { renderNodesHtml } from '../notationExport';
-import { bind, dataIcon, spinner } from '../util';
-import { makeNotation } from 'common/notation';
+import { ForecastCtrl, ForecastStep } from './interfaces';
 
 function onMyTurn(ctrl: AnalyseCtrl, fctrl: ForecastCtrl, cNodes: ForecastStep[]): VNode | undefined {
   var firstNode = cNodes[0];
@@ -14,13 +13,10 @@ function onMyTurn(ctrl: AnalyseCtrl, fctrl: ForecastCtrl, cNodes: ForecastStep[]
   var lines = fcs.filter(function (fc) {
     return fc.length > 1;
   });
-  const initialSfen = firstNode.sfen;
-  const moveNotation = makeNotation(
-    ctrl.data.pref.pieceNotation,
-    initialSfen,
-    ctrl.data.game.variant.key,
-    cNodes[0].usi
-  );
+  const initialSfen = firstNode.sfen,
+    moveNotation =
+      firstNode.notation ||
+      makeNotation(ctrl.data.pref.notation, initialSfen, ctrl.data.game.variant.key, cNodes[0].usi);
   return h(
     'button.on-my-turn.button.text',
     {
@@ -29,13 +25,17 @@ function onMyTurn(ctrl: AnalyseCtrl, fctrl: ForecastCtrl, cNodes: ForecastStep[]
     },
     [
       h('span', [
-        h('strong', ctrl.trans('playX', moveNotation!)),
+        h('strong', ctrl.trans('playX', moveNotation)),
         lines.length
           ? h('span', ctrl.trans.plural('andSaveNbPremoveLines', lines.length))
           : h('span', ctrl.trans.noarg('noConditionalPremoves')),
       ]),
     ]
   );
+}
+
+function parentNode(ctrl: AnalyseCtrl, ply: number): Tree.Node {
+  return ctrl.mainline[ply - 1];
 }
 
 function makeCnodes(ctrl: AnalyseCtrl, fctrl: ForecastCtrl): ForecastStep[] {
@@ -45,9 +45,25 @@ function makeCnodes(ctrl: AnalyseCtrl, fctrl: ForecastCtrl): ForecastStep[] {
       ply: node.ply,
       sfen: node.sfen,
       usi: node.usi!,
+      notation: node.notation!,
       check: node.check,
     }))
   );
+}
+
+function renderNodesHtml(nodes: ForecastStep[], notation: Notation): MaybeVNodes {
+  if (!nodes[0]) return [];
+  if (!nodes[0].usi) nodes = nodes.slice(1);
+  if (!nodes[0]) return [];
+  const tags: MaybeVNodes = [],
+    addColorIcon = notationsWithColor.includes(notation);
+
+  nodes.forEach((node, index) => {
+    const colorIcon = addColorIcon ? ('.color-icon.' + (node.ply % 2) ? 'gote' : 'sente') : '';
+    tags.push(h('index', index + 1 + '.'));
+    tags.push(h('move-notation' + colorIcon, node.notation));
+  });
+  return tags;
 }
 
 export default function (ctrl: AnalyseCtrl, fctrl: ForecastCtrl): VNode {
@@ -65,27 +81,26 @@ export default function (ctrl: AnalyseCtrl, fctrl: ForecastCtrl): VNode {
         h(
           'div.list',
           fctrl.list().map(function (nodes, i) {
+            const par = parentNode(ctrl, nodes[0].ply),
+              notations = makeNotationLine(
+                ctrl.data.pref.notation,
+                par.sfen,
+                ctrl.data.game.variant.key,
+                nodes.map(n => n.usi),
+                par.usi
+              );
+            notations.map((n, i) => (nodes[i].notation = n));
             return h(
               'div.entry.text',
               {
                 attrs: dataIcon('G'),
               },
               [
-                h(
-                  'a.del',
-                  {
-                    hook: bind(
-                      'click',
-                      e => {
-                        fctrl.removeIndex(i);
-                        e.stopPropagation();
-                      },
-                      ctrl.redraw
-                    ),
-                  },
-                  'x'
-                ),
-                h('moves-notation', renderNodesHtml(nodes, ctrl.data.pref.pieceNotation, ctrl.data.game.variant.key)),
+                h('button.del', {
+                  hook: bind('click', _ => fctrl.removeIndex(i), ctrl.redraw),
+                  attrs: { 'data-icon': 'L', type: 'button' },
+                }),
+                h('moves-notation', renderNodesHtml(nodes, ctrl.data.pref.notation)),
               ]
             );
           })
@@ -101,10 +116,7 @@ export default function (ctrl: AnalyseCtrl, fctrl: ForecastCtrl): VNode {
             isCandidate
               ? h('span', [
                   h('span', ctrl.trans.noarg('addCurrentVariation')),
-                  h(
-                    'moves-notation',
-                    renderNodesHtml(cNodes, ctrl.data.pref.pieceNotation, ctrl.data.game.variant.key)
-                  ),
+                  h('moves-notation', renderNodesHtml(cNodes, ctrl.data.pref.notation)),
                 ])
               : h('span', ctrl.trans.noarg('playVariationToCreateConditionalPremoves')),
           ]

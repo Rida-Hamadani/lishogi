@@ -1,9 +1,9 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-
+import { bind, dataIcon } from 'common/snabbdom';
+import spinner from 'common/spinner';
+import { VNode, h } from 'snabbdom';
 import TournamentController from '../ctrl';
-import { bind, numberRow, spinner, dataIcon, player as renderPlayer } from './util';
 import { teamName } from './battle';
+import { numberRow, player as renderPlayer } from './util';
 
 export default function (ctrl: TournamentController): VNode | undefined {
   const battle = ctrl.data.teamBattle,

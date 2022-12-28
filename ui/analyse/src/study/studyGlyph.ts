@@ -1,10 +1,10 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import * as xhr from './studyXhr';
-import { prop, Prop } from 'common';
+import { Prop, prop } from 'common/common';
+import { bind } from 'common/snabbdom';
+import spinner from 'common/spinner';
 import throttle from 'common/throttle';
-import { bind, spinner } from '../util';
+import { VNode, h } from 'snabbdom';
 import AnalyseCtrl from '../ctrl';
+import * as xhr from './studyXhr';
 
 interface AllGlyphs {
   move: Tree.Glyph[];

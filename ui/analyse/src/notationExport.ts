@@ -1,21 +1,14 @@
-import AnalyseCtrl from './ctrl';
-import { h } from 'snabbdom';
-import { MaybeVNodes } from './interfaces';
-import { makeMoveNotationLine } from 'common/notation';
-import { ForecastStep } from './forecast/interfaces';
-import { ops as treeOps } from 'tree';
-
-import { makeKifHeader, makeKifMove } from 'shogiops/notation/kif/kif';
+import { defined } from 'common/common';
 import { makeCsaHeader, makeCsaMove } from 'shogiops/notation/csa/csa';
-import { parseSfen, INITIAL_SFEN } from 'shogiops/sfen';
-import { defined } from 'common';
+import { makeKifHeader, makeKifMove } from 'shogiops/notation/kif/kif';
+import { initialSfen, parseSfen } from 'shogiops/sfen';
+import { Square } from 'shogiops/types';
 import { parseUsi } from 'shogiops/util';
-import { Square, Rules } from 'shogiops/types';
+import { Position } from 'shogiops/variant/position';
+import { Shogi } from 'shogiops/variant/shogi';
+import { ops as treeOps } from 'tree';
 import { renderTime } from './clocks';
-import { Position } from 'shogiops';
-import { lishogiVariantRules } from 'shogiops/compat';
-import { PositionError, setupPosition } from 'shogiops/variant';
-import { Result } from '@badrap/result';
+import AnalyseCtrl from './ctrl';
 
 function makeKifTime(moveTime: number, totalTime: number): string {
   return '   (' + renderTime(moveTime, false) + '/' + renderTime(totalTime, true) + ')';
@@ -35,13 +28,20 @@ function makeKifNodes(node: Tree.Node, pos: Position, offset: number): string[] 
   let lastDest: Square | undefined = undefined;
   let timesSoFar: number[] = [0, 0];
 
+  const moveNumberSuf = pos.rules === 'chushogi' ? '手目' : '';
+
   for (const m of mainline) {
     if (defined(m.usi)) {
       const move = parseUsi(m.usi);
       if (defined(move)) {
-        const kifMove = makeKifMove(pos, move, lastDest);
-        const kifTime = defined(m.clock) ? makeKifTime(m.clock, (timesSoFar[m.ply % 2] += m.clock)) : '';
-        res.push(pad((m.ply - offset).toString(), padding + 1) + kifMove + kifTime);
+        const kifMove = makeKifMove(pos, move, lastDest),
+          kifTime = defined(m.clock) ? makeKifTime(m.clock, (timesSoFar[m.ply % 2] += m.clock)) : '',
+          moveNumStr = pad((m.ply - offset).toString(), padding + 1) + moveNumberSuf;
+        if (kifMove?.includes('\n')) {
+          const split = kifMove.split('\n');
+          res.push(moveNumStr + split[0]);
+          res.push(moveNumStr + split[1] + kifTime);
+        } else res.push(`${moveNumStr} ${kifMove}${kifTime}`);
         lastDest = move.to;
         pos.play(move);
       }
@@ -54,7 +54,7 @@ function makeKifNodes(node: Tree.Node, pos: Position, offset: number): string[] 
   }
 
   for (const m of mainline.reverse()) {
-    const newPos = makePosition(m.sfen, pos.rules);
+    const newPos = parseSfen(pos.rules, m.sfen, false);
     if (newPos.isOk) {
       for (const m2 of m.children.slice(1)) {
         res.push('\n変化：' + m2.ply + '手');
@@ -68,36 +68,34 @@ function makeKifNodes(node: Tree.Node, pos: Position, offset: number): string[] 
 
 export function renderFullKif(ctrl: AnalyseCtrl): string {
   const g = ctrl.data.game;
-  const setup = parseSfen(g.initialSfen ?? INITIAL_SFEN).unwrap();
   const offset = ctrl.plyOffset();
 
-  const pos = setupPosition(lishogiVariantRules(ctrl.data.game.variant.key), setup).unwrap();
+  const pos = parseSfen(
+    ctrl.data.game.variant.key,
+    g.initialSfen || initialSfen(ctrl.data.game.variant.key),
+    false
+  ).unwrap();
   const moves = makeKifNodes(ctrl.tree.root, pos, offset % 2).join('\n');
 
   const tags = ctrl.data.tags ?? [];
   // We either don't want to display these or we display them through other means
-  const unwatedTagNames = ['先手', '下手', '後手', '上手', '手合割', '図', 'SFEN', 'Result', 'Variant'];
+  const unwatedTagNames = ['先手', '下手', '後手', '上手', '手合割', '図', 'Sfen', 'Result', 'Variant'];
   const otherTags = tags.filter(t => !unwatedTagNames.includes(t[0])).map(t => t[0] + '：' + t[1]);
 
   // We want these even empty
   const sente = tags.find(t => t[0] === '先手' || t[0] === '下手') ?? ['先手', ''];
   const gote = tags.find(t => t[0] === '後手' || t[0] === '上手') ?? ['後手', ''];
 
-  return [
-    ...otherTags,
-    makeKifHeader(setup),
-    sente.join('：'),
-    gote.join('：'),
-    '手数----指手---------消費時間--',
-    moves,
-  ].join('\n');
+  return [...otherTags, makeKifHeader(pos), sente.join('：'), gote.join('：'), '手数----指手---------消費時間--', moves]
+    .filter(l => l.length)
+    .join('\n');
 }
 
 function makeCsaTime(moveTime: number): string {
   return ',T' + Math.floor(moveTime / 100);
 }
 
-function makeCsaMainline(node: Tree.Node, pos: Position): string[] {
+function makeCsaMainline(node: Tree.Node, pos: Shogi): string[] {
   pos = pos.clone();
   const res: string[] = [];
 
@@ -110,6 +108,7 @@ function makeCsaMainline(node: Tree.Node, pos: Position): string[] {
         const csaMove = makeCsaMove(pos, move);
         const csaTime = defined(m.clock) ? makeCsaTime(m.clock) : '';
         res.push(csaMove + csaTime);
+        pos.play(move);
       }
     }
     if (defined(m.comments)) {
@@ -157,30 +156,10 @@ function processCsaTags(tags: string[][]): string[] {
     .concat(asciiTags);
 }
 
-function makePosition(initialSfen: Sfen, rules: Rules): Result<Position, PositionError> {
-  return parseSfen(initialSfen).chain(s => setupPosition(rules, s));
-}
-
 export function renderFullCsa(ctrl: AnalyseCtrl): string {
   const g = ctrl.data.game;
   const tags = processCsaTags(ctrl.data.tags ?? []);
-  const setup = parseSfen(g.initialSfen ?? INITIAL_SFEN).unwrap();
-  const pos = setupPosition(lishogiVariantRules(ctrl.data.game.variant.key), setup).unwrap();
+  const pos = parseSfen('standard', g.initialSfen ?? initialSfen('standard'), false).unwrap();
   const moves = makeCsaMainline(ctrl.tree.root, pos).join('\n');
-  return [...tags, makeCsaHeader(setup), moves].join('\n');
-}
-
-export function renderNodesHtml(nodes: ForecastStep[], notation: number, variant: VariantKey): MaybeVNodes {
-  if (!nodes[0]) return [];
-  const initialSfen = nodes[0].sfen;
-  if (!nodes[0].usi) nodes = nodes.slice(1);
-  if (!nodes[0]) return [];
-  const tags: MaybeVNodes = [];
-  const usis = nodes.map(n => n.usi);
-  const movesNotation = makeMoveNotationLine(notation, initialSfen, variant, usis);
-  movesNotation.forEach((notation, index) => {
-    tags.push(h('index', index + 1 + '.'));
-    tags.push(h('move-notation', notation));
-  });
-  return tags;
+  return [...tags, makeCsaHeader(pos), moves].join('\n');
 }

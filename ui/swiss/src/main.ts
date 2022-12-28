@@ -1,15 +1,11 @@
-import { init } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import klass from 'snabbdom/modules/class';
-import attributes from 'snabbdom/modules/attributes';
-import { Shogiground } from 'shogiground';
-import { SwissOpts } from './interfaces';
-import SwissCtrl from './ctrl';
 import LishogiChat from 'chat';
-
-const patch = init([klass, attributes]);
-
+import { Shogiground } from 'shogiground';
+import { VNode, attributesModule, classModule, init } from 'snabbdom';
+import SwissCtrl from './ctrl';
+import { SwissOpts } from './interfaces';
 import view from './view/main';
+
+const patch = init([classModule, attributesModule]);
 
 export function start(opts: SwissOpts) {
   const li = window.lishogi;

@@ -3,7 +3,6 @@
 
   @include breakpoint($mq-col2) {
     flex-flow: column;
-    max-height: 50%;
   }
 
   .continue {
@@ -100,6 +99,7 @@
 
     justify-content: center;
     flex: 0 0 50%;
+    padding: 5px 0;
     cursor: pointer;
     color: $c-good;
 

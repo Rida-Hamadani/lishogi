@@ -13,67 +13,60 @@
     margin-top: 2vh;
   }
   .no-square {
-    flex: 0 0 calc(100% / 8);
+    flex: 0 0 calc(100% / 9);
     @include transition();
-    &:hover {
-      background: fade-out($c-primary, 0.8);
-    }
     &.selected-square {
-      background: fade-out($c-primary, 0.5);
+      background: $c-primary;
     }
     div {
       @extend %square;
     }
     &.pointer {
       @extend %box-radius-left;
-      &.selected-square,
       &:hover {
-        background: fade-out($c-good, 0.8);
+        background: fade-out($c-good, 0.3);
+      }
+      &.selected-square {
+        background-color: $c-good;
       }
       piece {
-        background-image: img-url('icons/pointer.svg');
+        background-image: img-url('icons/pointer.svg') !important;
       }
     }
     &.trash {
+      margin-left: auto;
       @extend %box-radius-right;
       &:hover {
-        background: fade-out($c-bad, 0.8);
+        background-color: fade-out($c-bad, 0.3);
       }
       &.selected-square {
-        background: fade-out($c-bad, 0.4);
+        background-color: $c-bad;
       }
       piece {
-        background-image: img-url('icons/trash.svg');
+        background-image: img-url('icons/trash.svg') !important;
       }
     }
   }
 
-  .is3d & .no-square div {
-    padding-bottom: 90.72%;
-  }
   piece {
     display: block;
     cursor: pointer;
     width: 200%;
     height: 200%;
     margin: -50%;
-    .is3d & {
-      /* original size: width: 140.625%; height: 179.6875%; size on 3D board, with height/width = 90.78571% */
-      width: 100%;
-      height: 140.7465%;
-      left: 0;
-      top: -34%;
-    }
   }
   piece.pointer,
   piece.trash {
     margin: 14%;
     width: 72%;
     height: 72%;
-    .is3d & {
-      width: 62%;
-      top: 0;
-    }
     transform: scale(1);
   }
+}
+
+.board-editor.variant-minishogi .spare .no-square {
+  flex: 0 0 calc(100% / 6);
+}
+.board-editor.variant-chushogi .spare .no-square {
+  flex: 0 0 calc(100% / 22);
 }

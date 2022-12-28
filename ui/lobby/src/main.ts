@@ -1,14 +1,11 @@
-import { init } from 'snabbdom';
-import klass from 'snabbdom/modules/class';
-import attributes from 'snabbdom/modules/attributes';
 import { Shogiground } from 'shogiground';
-import { LobbyOpts, Tab } from './interfaces';
-
-export const patch = init([klass, attributes]);
-
-import makeCtrl from './ctrl';
-import view from './view/main';
+import { attributesModule, classModule, init } from 'snabbdom';
 import boot from './boot';
+import makeCtrl from './ctrl';
+import { LobbyOpts, Tab } from './interfaces';
+import view from './view/main';
+
+export const patch = init([classModule, attributesModule]);
 
 export function start(opts: LobbyOpts) {
   const ctrl = new makeCtrl(opts, redraw);

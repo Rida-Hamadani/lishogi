@@ -25,7 +25,7 @@ object side {
       val isPuzzle = perfType == lila.rating.PerfType.Puzzle
       a(
         dataIcon := perfType.iconChar,
-        title := perfType.desc,
+        title    := perfType.desc,
         cls := List(
           "empty"  -> perf.isEmpty,
           "active" -> active.has(perfType)
@@ -69,6 +69,7 @@ object side {
         showPerf(u.perfs.correspondence, PerfType.Correspondence),
         br,
         showNonEmptyPerf(u.perfs.minishogi, PerfType.Minishogi),
+        showNonEmptyPerf(u.perfs.chushogi, PerfType.Chushogi),
         br,
         u.noBot option showPerf(u.perfs.puzzle, PerfType.Puzzle),
         u.noBot option showStorm(u.perfs.storm, u)

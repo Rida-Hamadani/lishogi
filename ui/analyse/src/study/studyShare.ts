@@ -1,9 +1,9 @@
-import { h } from 'snabbdom';
-import { VNode } from 'snabbdom/vnode';
-import { bind, baseUrl } from '../util';
-import { prop, Prop } from 'common';
+import { Prop, prop } from 'common/common';
+import { bind } from 'common/snabbdom';
+import { VNode, h } from 'snabbdom';
 import { renderIndexAndMove } from '../moveView';
-import { StudyData, StudyChapterMeta } from './interfaces';
+import { baseUrl } from '../util';
+import { StudyChapterMeta, StudyData } from './interfaces';
 
 interface StudyShareCtrl {
   studyId: string;
@@ -162,18 +162,6 @@ export function view(ctrl: StudyShareCtrl): VNode {
       ]),
     ]),
     h('div.downloads', [
-      ctrl.cloneable
-        ? h(
-            'a.button.text',
-            {
-              attrs: {
-                'data-icon': '4',
-                href: `/study/${studyId}/clone`,
-              },
-            },
-            ctrl.trans.noarg('cloneStudy')
-          )
-        : null,
       h(
         'a.button.text',
         {
@@ -185,7 +173,7 @@ export function view(ctrl: StudyShareCtrl): VNode {
         },
         ctrl.trans.noarg(ctrl.relay ? 'downloadGame' : 'chapterKif')
       ),
-      ['standard'].includes(chapter.variant)
+      'standard' === chapter.variant
         ? h(
             'a.button.text',
             {
@@ -198,7 +186,19 @@ export function view(ctrl: StudyShareCtrl): VNode {
             ctrl.trans.noarg(ctrl.relay ? 'downloadGame' : 'chapterCsa')
           )
         : null,
-      ['standard'].includes(chapter.variant)
+      ctrl.cloneable
+        ? h(
+            'a.button.text',
+            {
+              attrs: {
+                'data-icon': '4',
+                href: `/study/${studyId}/clone`,
+              },
+            },
+            ctrl.trans.noarg('cloneStudy')
+          )
+        : null,
+      'standard' === chapter.variant
         ? h(
             'a.button.text',
             {

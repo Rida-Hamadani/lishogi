@@ -18,10 +18,12 @@ interface Lishogi {
   loadedCss: { [key: string]: boolean };
   loadCss(path: string): void;
   loadCssPath(path: string): void;
+  loadChushogiPieceSprite(): void;
   compiledScript(path: string): string;
   loadScript(url: string, opts?: AssetUrlOpts): Promise<unknown>;
   hopscotch: any;
   slider(): any;
+  spectrum: any;
   makeChat(data: any, callback?: (chat: any) => void): void;
   formAjax(form: JQuery): any;
   numberFormat(n: number): string;
@@ -83,8 +85,7 @@ interface Lishogi {
 }
 
 interface LishogiSpeech {
-  say(t: string, cut: boolean): void;
-  step(s: { usi?: Usi }, cut: boolean): void;
+  step(s: { notation?: string }, cut: boolean): void;
 }
 
 interface PalantirOpts {
@@ -104,6 +105,7 @@ interface Cookie {
 interface AssetUrlOpts {
   sameDomain?: boolean;
   noVersion?: boolean;
+  version?: string;
 }
 
 declare type SocketSend = (type: string, data?: any, opts?: any, noRetry?: boolean) => void;
@@ -196,17 +198,33 @@ interface Navigator {
   deviceMemory: number;
 }
 
-declare type VariantKey = 'standard' | 'minishogi';
+declare type VariantKey = 'standard' | 'minishogi' | 'chushogi';
 
 declare type Speed = 'bullet' | 'blitz' | 'classical' | 'correspondence' | 'unlimited';
 
-declare type Perf = 'bullet' | 'blitz' | 'classical' | 'correspondence' | 'minishogi';
+declare type Perf = 'bullet' | 'blitz' | 'classical' | 'correspondence' | 'minishogi' | 'chushogi';
 
 declare type Color = 'sente' | 'gote';
 
-declare type Files = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
-declare type Ranks = 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i';
-declare type Key = '00' | `${Files}${Ranks}`;
+declare type Files =
+  | '1'
+  | '2'
+  | '3'
+  | '4'
+  | '5'
+  | '6'
+  | '7'
+  | '8'
+  | '9'
+  | '10'
+  | '11'
+  | '12'
+  | '13'
+  | '14'
+  | '15'
+  | '16';
+declare type Ranks = 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' | 'p';
+declare type Key = `${Files}${Ranks}`;
 
 declare type MoveNotation = string;
 declare type Usi = string;
@@ -233,19 +251,26 @@ interface Paginator<A> {
 declare namespace Tree {
   export type Path = string;
 
-  export interface ClientEval {
+  interface ClientEvalBase {
     sfen: Sfen;
-    maxDepth: number;
     depth: number;
-    knps: number;
     nodes: number;
-    millis: number;
     pvs: PvData[];
-    cloud?: boolean;
     cp?: number;
     mate?: number;
-    retried?: boolean;
   }
+  export interface CloudEval extends ClientEvalBase {
+    cloud: true;
+    maxDepth: undefined;
+    millis: undefined;
+  }
+  export interface LocalEval extends ClientEvalBase {
+    cloud?: false;
+    maxDepth: number;
+    knps: number;
+    millis: number;
+  }
+  export type ClientEval = CloudEval | LocalEval;
 
   export interface ServerEval {
     cp?: number;
@@ -273,8 +298,9 @@ declare namespace Tree {
     children: Node[];
     comments?: Comment[];
     gamebook?: Gamebook;
-    check?: Key;
-    threat?: ClientEval;
+    check?: boolean;
+    capture?: boolean;
+    threat?: LocalEval;
     ceval?: ClientEval;
     eval?: ServerEval;
     tbhit?: TablebaseHit | null;
@@ -339,6 +365,7 @@ interface JQuery {
   highcharts(conf?: any): any;
   slider(key: string, value: any): any;
   slider(opts: any): any;
+  spectrum(opts: any): any;
   flatpickr(opts: any): any;
 }
 
